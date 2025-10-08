@@ -309,7 +309,7 @@ router.get('/:id/comments', async (req, res) => {
 
 router.post('/:id/comments', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { text } = req.body;
+    const { text, parentCommentId } = req.body;
     const postId = req.params.id;
 
     if (!text) {
@@ -319,7 +319,8 @@ router.post('/:id/comments', authenticateToken, async (req: AuthRequest, res) =>
     const comment = await Comment.create({
       postId,
       authorId: req.userId,
-      text
+      text,
+      parentCommentId: parentCommentId || null
     });
 
     await Post.findByIdAndUpdate(postId, { $inc: { commentsCount: 1 } });
@@ -339,6 +340,18 @@ router.post('/:id/comments', authenticateToken, async (req: AuthRequest, res) =>
     }
 
     res.status(201).json(populatedComment);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Replies for a specific comment
+router.get('/:postId/comments/:commentId/replies', async (req, res) => {
+  try {
+    const replies = await Comment.find({ postId: req.params.postId, parentCommentId: req.params.commentId })
+      .sort({ createdAt: 1 })
+      .populate('authorId', 'username displayName profilePic verified');
+    res.json(replies);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

@@ -98,10 +98,7 @@ const Explore = () => {
       ) : (
         <div className="grid grid-cols-3 gap-1">
           {posts.map((post) => (
-            <div
-              key={post._id}
-              className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer hover:opacity-75 transition"
-            >
+            <div key={post._id} className="relative group aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer">
               {post.media && post.media[0] && (
                 <img
                   src={post.media[0].thumbnail || post.media[0].url}
@@ -109,6 +106,18 @@ const Explore = () => {
                   className="w-full h-full object-cover"
                 />
               )}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center">
+                <div className="flex items-center gap-4 text-white font-semibold">
+                  <div className="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09A6.003 6.003 0 0 1 21 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
+                    <span>{post.likesCount || 0}</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l1.5-4.5C2.6 15.1 2 13.6 2 12 2 7.6 6.5 4 12 4s10 3.6 10 8-4.5 8-10 8c-1.6 0-3.1-.3-4.5-.8L2 21z"/></svg>
+                    <span>{post.commentsCount || 0}</span>
+                  </div>
+                </div>
+              </div>
             </div>
           ))}
         </div>

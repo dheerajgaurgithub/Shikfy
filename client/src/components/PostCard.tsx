@@ -144,7 +144,7 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
           </div>
         </Link>
 
-        {user?._id === post.authorId._id && (
+        {user?.id === post.authorId._id && (
           <div className="relative">
             <button
               onClick={() => setShowMenu(!showMenu)}
@@ -168,18 +168,19 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
       </div>
 
       {post.media && post.media.length > 0 && (
-        <div className="relative bg-gray-100 dark:bg-gray-900">
+        <div className="relative bg-black">
           {post.media[0].type === 'image' ? (
             <img
               src={post.media[0].url}
               alt="Post"
-              className="w-full max-h-[600px] object-cover"
+              className="w-full max-h-[70vh] object-contain"
             />
           ) : (
             <video
               src={post.media[0].url}
+              poster={post.media[0].thumbnail}
               controls
-              className="w-full max-h-[600px] object-cover"
+              className="w-full max-h-[70vh] object-contain"
             />
           )}
         </div>

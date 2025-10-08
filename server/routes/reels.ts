@@ -238,7 +238,7 @@ router.get('/:id/bookmark-status', authenticateToken, async (req: AuthRequest, r
 
 router.get('/:id/comments', async (req, res) => {
   try {
-    const comments = await Comment.find({ reelId: req.params.id })
+    const comments = await Comment.find({ reelId: req.params.id, parentCommentId: null })
       .sort({ createdAt: -1 })
       .populate('authorId', 'username displayName profilePic verified');
 
@@ -250,7 +250,7 @@ router.get('/:id/comments', async (req, res) => {
 
 router.post('/:id/comments', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { text } = req.body;
+    const { text, parentCommentId } = req.body;
     const reelId = req.params.id;
 
     if (!text) {
@@ -260,7 +260,8 @@ router.post('/:id/comments', authenticateToken, async (req: AuthRequest, res) =>
     const comment = await Comment.create({
       reelId,
       authorId: req.userId,
-      text
+      text,
+      parentCommentId: parentCommentId || null
     });
 
     await Reel.findByIdAndUpdate(reelId, { $inc: { commentsCount: 1 } });
@@ -269,6 +270,18 @@ router.post('/:id/comments', authenticateToken, async (req: AuthRequest, res) =>
       .populate('authorId', 'username displayName profilePic verified');
 
     res.status(201).json(populatedComment);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Replies for a specific comment on a reel
+router.get('/:reelId/comments/:commentId/replies', async (req, res) => {
+  try {
+    const replies = await Comment.find({ reelId: req.params.reelId, parentCommentId: req.params.commentId })
+      .sort({ createdAt: 1 })
+      .populate('authorId', 'username displayName profilePic verified');
+    res.json(replies);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
