@@ -24,7 +24,7 @@ const Layout = ({ children }: LayoutProps) => {
     { icon: Film, label: 'Reels', path: '/reels' },
     { icon: Heart, label: 'Notifications', path: '/notifications' },
     { icon: Bookmark, label: 'Saved', path: '/saved' },
-    { icon: User, label: 'Profile', path: `/profile/${user?._id}` }
+    { icon: User, label: 'Profile', path: user?.id ? `/profile/${user.id}` : '/profile' }
   ];
 
   return (
@@ -69,7 +69,7 @@ const Layout = ({ children }: LayoutProps) => {
             </nav>
 
             <div className="flex-shrink-0 flex border-t border-gray-200 dark:border-gray-700 p-4">
-              <Link to={`/profile/${user?._id}`} className="flex items-center w-full group">
+              <Link to={user?.id ? `/profile/${user.id}` : '/profile'} className="flex items-center w-full group">
                 <div className="w-10 h-10 rounded-full bg-gradient-to-r from-blue-500 to-pink-500 flex items-center justify-center text-white font-bold">
                   {user?.profilePic ? (
                     <img
