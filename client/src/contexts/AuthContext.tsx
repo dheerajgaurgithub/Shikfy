@@ -35,7 +35,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     if (token && savedUser) {
       try {
-        setUser(JSON.parse(savedUser));
+        const parsed = JSON.parse(savedUser);
+        // Normalize legacy user shape {_id: ...} => {id: ...}
+        if (parsed && !parsed.id && parsed._id) {
+          const normalized = { ...parsed, id: parsed._id };
+          localStorage.setItem('user', JSON.stringify(normalized));
+          setUser(normalized);
+        } else {
+          setUser(parsed);
+        }
       } catch (error) {
         console.error('Failed to parse saved user:', error);
         localStorage.removeItem('user');

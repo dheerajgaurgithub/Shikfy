@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, PlusSquare, Film, User, Heart, Bookmark, Settings, LogOut, Camera, Menu, X } from 'lucide-react';
+import { Home, Search, Film, User, Heart, Bookmark, Settings, LogOut, Camera, Menu, X } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
@@ -24,6 +24,7 @@ const Layout = ({ children }: LayoutProps) => {
     { icon: Film, label: 'Reels', path: '/reels' },
     { icon: Heart, label: 'Notifications', path: '/notifications' },
     { icon: Bookmark, label: 'Saved', path: '/saved' },
+    { icon: Settings, label: 'Settings', path: '/settings' },
     { icon: User, label: 'Profile', path: user?.id ? `/profile/${user.id}` : '/profile' }
   ];
 

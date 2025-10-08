@@ -77,14 +77,16 @@ const Reels = () => {
                 </Link>
               </div>
 
-              <div className="relative bg-black aspect-[9/16]">
-                <video
-                  src={reel.video.url}
-                  poster={reel.video.thumbnail}
-                  controls
-                  className="w-full h-full object-contain"
-                />
-              </div>
+              <Link to={`/reel/${reel._id}`} className="block">
+                <div className="relative bg-black aspect-[9/16]">
+                  <video
+                    src={reel.video.url}
+                    poster={reel.video.thumbnail}
+                    controls
+                    className="w-full h-full object-contain"
+                  />
+                </div>
+              </Link>
 
               <div className="p-4">
                 <div className="flex items-center justify-between mb-3">

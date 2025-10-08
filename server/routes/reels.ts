@@ -1,5 +1,6 @@
 import express from 'express';
 import Reel from '../models/Reel';
+import Follow from '../models/Follow';
 import Like from '../models/Like';
 import Bookmark from '../models/Bookmark';
 import Comment from '../models/Comment';
@@ -10,7 +11,7 @@ const router = express.Router();
 
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { caption, video, audio, location, hashtags } = req.body;
+    const { caption, video, audio, location, hashtags, visibility, allowList, excludeList } = req.body;
 
     const reel = await Reel.create({
       authorId: req.userId,
@@ -18,6 +19,9 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       video,
       audio,
       location,
+      visibility: visibility || 'public',
+      allowList: Array.isArray(allowList) ? allowList : [],
+      excludeList: Array.isArray(excludeList) ? excludeList : [],
       hashtags: hashtags || []
     });
 
@@ -31,19 +35,47 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   }
 });
 
-router.get('/feed', async (req, res) => {
+router.get('/feed', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
     const skip = (page - 1) * limit;
 
-    const reels = await Reel.find()
+    const userId = req.userId!;
+    const [followingDocs, followersDocs] = await Promise.all([
+      Follow.find({ followerId: userId }).select('followingId'),
+      Follow.find({ followingId: userId }).select('followerId')
+    ]);
+    const followingIds = new Set(followingDocs.map(f => String(f.followingId)));
+    const followersIds = new Set(followersDocs.map(f => String(f.followerId)));
+    const mutualIds = new Set<string>();
+    followingIds.forEach(id => { if (followersIds.has(id)) mutualIds.add(id); });
+
+    const candidates = await Reel.find({})
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
-      .populate('authorId', 'username displayName profilePic verified');
+      .limit(limit * 2)
+      .populate('authorId', 'username displayName profilePic verified closeFriends');
 
-    res.json(reels);
+    const visible = candidates.filter((r: any) => {
+      const authorId = String(r.authorId?._id || r.authorId);
+      const vis = r.visibility || 'public';
+      if (vis === 'public') return true;
+      if (vis === 'followers') return followingIds.has(authorId);
+      if (vis === 'mutuals') return mutualIds.has(authorId);
+      if (vis === 'custom') {
+        const allowed = (r.allowList || []).map((id: any) => String(id));
+        const excluded = (r.excludeList || []).map((id: any) => String(id));
+        return allowed.includes(userId) && !excluded.includes(userId);
+      }
+      if (vis === 'close_friends') {
+        const cf = (r.authorId?.closeFriends || []).map((id: any) => String(id));
+        return cf.includes(userId);
+      }
+      return true;
+    }).slice(0, limit);
+
+    res.json(visible);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

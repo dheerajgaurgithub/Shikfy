@@ -13,6 +13,7 @@ export interface IUser extends Document {
   roles: string[];
   languages: string[];
   themePref: 'light' | 'dark' | 'system';
+  closeFriends?: mongoose.Types.ObjectId[];
   privacySettings: {
     showProfileViews: boolean;
     allowAnonymousStoryViews: boolean;
@@ -23,6 +24,7 @@ export interface IUser extends Document {
   followersCount: number;
   followingCount: number;
   postsCount: number;
+  lastUsernameChangeAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,6 +42,7 @@ const UserSchema: Schema = new Schema({
   roles: [{ type: String, default: 'user' }],
   languages: [{ type: String, default: ['en'] }],
   themePref: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
+  closeFriends: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   privacySettings: {
     showProfileViews: { type: Boolean, default: true },
     allowAnonymousStoryViews: { type: Boolean, default: false },

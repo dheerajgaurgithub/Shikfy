@@ -14,6 +14,9 @@ export interface IReel extends Document {
     allowDownload: boolean;
   };
   location?: string;
+  visibility?: 'public' | 'followers' | 'mutuals' | 'custom' | 'close_friends';
+  allowList?: mongoose.Types.ObjectId[];
+  excludeList?: mongoose.Types.ObjectId[];
   likesCount: number;
   savesCount: number;
   commentsCount: number;
@@ -37,6 +40,13 @@ const ReelSchema: Schema = new Schema({
     allowDownload: { type: Boolean, default: false }
   },
   location: { type: String },
+  visibility: {
+    type: String,
+    enum: ['public', 'followers', 'mutuals', 'custom', 'close_friends'],
+    default: 'public'
+  },
+  allowList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  excludeList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   likesCount: { type: Number, default: 0 },
   savesCount: { type: Number, default: 0 },
   commentsCount: { type: Number, default: 0 },

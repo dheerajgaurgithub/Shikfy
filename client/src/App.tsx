@@ -11,6 +11,9 @@ import Explore from './pages/Explore';
 import Reels from './pages/Reels';
 import Notifications from './pages/Notifications';
 import Saved from './pages/Saved';
+import PostDetail from './pages/PostDetail';
+import ReelDetail from './pages/ReelDetail';
+import Settings from './pages/Settings';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -41,6 +44,11 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
 };
 
 function App() {
+  const ProfileRedirect = () => {
+    const { user } = useAuth();
+    if (!user) return <Navigate to="/login" />;
+    return <Navigate to={`/profile/${user.id}`} />;
+  };
   return (
     <ThemeProvider>
       <AuthProvider>
@@ -72,6 +80,14 @@ function App() {
               }
             />
             <Route
+              path="/profile"
+              element={
+                <PrivateRoute>
+                  <ProfileRedirect />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/profile/:id"
               element={
                 <PrivateRoute>
@@ -88,10 +104,26 @@ function App() {
               }
             />
             <Route
+              path="/post/:id"
+              element={
+                <PrivateRoute>
+                  <PostDetail />
+                </PrivateRoute>
+              }
+            />
+            <Route
               path="/reels"
               element={
                 <PrivateRoute>
                   <Reels />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/reel/:id"
+              element={
+                <PrivateRoute>
+                  <ReelDetail />
                 </PrivateRoute>
               }
             />
@@ -108,6 +140,14 @@ function App() {
               element={
                 <PrivateRoute>
                   <Saved />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/settings"
+              element={
+                <PrivateRoute>
+                  <Settings />
                 </PrivateRoute>
               }
             />

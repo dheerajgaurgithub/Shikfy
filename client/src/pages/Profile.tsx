@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { Settings, Grid, Bookmark as BookmarkIcon } from 'lucide-react';
+import { Settings, Grid, Bookmark as BookmarkIcon, Film, AtSign } from 'lucide-react';
+import EditProfileModal from '../components/EditProfileModal';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 
@@ -14,6 +15,11 @@ interface UserProfile {
   followersCount: number;
   followingCount: number;
   postsCount: number;
+  privacySettings?: {
+    profileVisibility?: 'public' | 'private';
+    showFollowersList?: boolean;
+    showFollowingList?: boolean;
+  };
 }
 
 const Profile = () => {
@@ -21,25 +27,27 @@ const Profile = () => {
   const { user: currentUser } = useAuth();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
+  const [reels, setReels] = useState<any[]>([]);
+  const [mentionsPosts, setMentionsPosts] = useState<any[]>([]);
+  const [mentionsReels, setMentionsReels] = useState<any[]>([]);
+  const [savedPosts, setSavedPosts] = useState<any[]>([]);
+  const [savedReels, setSavedReels] = useState<any[]>([]);
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [activeTab, setActiveTab] = useState<'posts'|'reels'|'mentions'|'saved'>('posts');
+  const [showEdit, setShowEdit] = useState(false);
 
   const isOwnProfile = currentUser?.id === id;
 
   useEffect(() => {
     const fetchProfile = async () => {
-      if (!id) {
-        // No id in URL; nothing to fetch
-        setLoading(false);
-        return;
-      }
+      if (!id) { setLoading(false); return; }
       try {
-        const [userRes, postsRes] = await Promise.all([
-          apiClient.get(`/users/${id}`),
-          apiClient.get(`/users/${id}/posts`)
-        ]);
-
+        const userRes = await apiClient.get(`/users/${id}`);
         setUser(userRes.data);
+
+        // Always load posts initially
+        const postsRes = await apiClient.get(`/users/${id}/posts`);
         setPosts(postsRes.data);
 
         if (!isOwnProfile) {
@@ -52,9 +60,31 @@ const Profile = () => {
         setLoading(false);
       }
     };
-
     fetchProfile();
   }, [id, isOwnProfile]);
+
+  useEffect(() => {
+    const fetchTab = async () => {
+      if (!id) return;
+      try {
+        if (activeTab === 'reels') {
+          const r = await apiClient.get(`/users/${id}/reels`);
+          setReels(r.data);
+        } else if (activeTab === 'mentions') {
+          const m = await apiClient.get(`/users/${id}/mentions`);
+          setMentionsPosts(m.data.posts || []);
+          setMentionsReels(m.data.reels || []);
+        } else if (activeTab === 'saved' && isOwnProfile) {
+          const b = await apiClient.get('/bookmarks');
+          setSavedPosts(b.data.posts || []);
+          setSavedReels(b.data.reels || []);
+        }
+      } catch (e) {
+        console.error('Failed to fetch tab data:', e);
+      }
+    };
+    fetchTab();
+  }, [activeTab, id, isOwnProfile]);
 
   const handleFollow = async () => {
     try {
@@ -122,7 +152,7 @@ const Profile = () => {
               </div>
 
               {isOwnProfile ? (
-                <button className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition flex items-center space-x-2">
+                <button onClick={()=>setShowEdit(true)} className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition flex items-center space-x-2">
                   <Settings className="w-4 h-4" />
                   <span>Edit Profile</span>
                 </button>
@@ -147,18 +177,22 @@ const Profile = () => {
                 </div>
                 <div className="text-sm text-gray-500 dark:text-gray-400">Posts</div>
               </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-gray-900 dark:text-white">
-                  {user.followersCount}
+              {(user.privacySettings?.showFollowersList !== false) && (
+                <div className="text-center">
+                  <div className="text-xl font-bold text-gray-900 dark:text-white">
+                    {user.followersCount}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Followers</div>
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Followers</div>
-              </div>
-              <div className="text-center">
-                <div className="text-xl font-bold text-gray-900 dark:text-white">
-                  {user.followingCount}
+              )}
+              {(user.privacySettings?.showFollowingList !== false) && (
+                <div className="text-center">
+                  <div className="text-xl font-bold text-gray-900 dark:text-white">
+                    {user.followingCount}
+                  </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400">Following</div>
                 </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Following</div>
-              </div>
+              )}
             </div>
 
             <div>
@@ -172,15 +206,25 @@ const Profile = () => {
       </div>
 
       <div className="border-t border-gray-200 dark:border-gray-700 mb-8">
-        <div className="flex justify-center space-x-16 py-4">
-          <button className="flex items-center space-x-2 text-gray-900 dark:text-white font-semibold border-t-2 border-gray-900 dark:border-white pt-4 -mt-[1px]">
-            <Grid className="w-5 h-5" />
-            <span>POSTS</span>
+        <div className="flex justify-center space-x-8 py-4">
+          <button onClick={()=>setActiveTab('posts')} className={`flex items-center space-x-2 font-semibold pt-4 -mt-[1px] ${activeTab==='posts'?'text-gray-900 dark:text-white border-t-2 border-gray-900 dark:border-white':'text-gray-500 dark:text-gray-400'}`}>
+            <Grid className="w-5 h-5" /> <span>POSTS</span>
           </button>
+          <button onClick={()=>setActiveTab('reels')} className={`flex items-center space-x-2 font-semibold pt-4 -mt-[1px] ${activeTab==='reels'?'text-gray-900 dark:text-white border-t-2 border-gray-900 dark:border-white':'text-gray-500 dark:text-gray-400'}`}>
+            <Film className="w-5 h-5" /> <span>REELS</span>
+          </button>
+          <button onClick={()=>setActiveTab('mentions')} className={`flex items-center space-x-2 font-semibold pt-4 -mt-[1px] ${activeTab==='mentions'?'text-gray-900 dark:text-white border-t-2 border-gray-900 dark:border-white':'text-gray-500 dark:text-gray-400'}`}>
+            <AtSign className="w-5 h-5" /> <span>MENTIONS</span>
+          </button>
+          {isOwnProfile && (
+            <button onClick={()=>setActiveTab('saved')} className={`flex items-center space-x-2 font-semibold pt-4 -mt-[1px] ${activeTab==='saved'?'text-gray-900 dark:text-white border-t-2 border-gray-900 dark:border-white':'text-gray-500 dark:text-gray-400'}`}>
+              <BookmarkIcon className="w-5 h-5" /> <span>SAVED</span>
+            </button>
+          )}
         </div>
       </div>
 
-      {posts.length === 0 ? (
+      {activeTab==='posts' && (posts.length === 0 ? (
         <div className="text-center py-16">
           <p className="text-gray-500 dark:text-gray-400">No posts yet</p>
         </div>
@@ -201,6 +245,96 @@ const Profile = () => {
             </div>
           ))}
         </div>
+      ))}
+
+      {activeTab==='reels' && (
+        reels.length === 0 ? (
+          <div className="text-center py-16 text-gray-500 dark:text-gray-400">No reels yet</div>
+        ) : (
+          <div className="grid grid-cols-3 gap-1">
+            {reels.map((reel)=> (
+              <div key={reel._id} className="aspect-[9/16] bg-black rounded-lg overflow-hidden">
+                <video src={reel.video.url} poster={reel.video.thumbnail} className="w-full h-full object-cover" />
+              </div>
+            ))}
+          </div>
+        )
+      )}
+
+      {activeTab==='mentions' && (
+        (mentionsPosts.length + mentionsReels.length === 0) ? (
+          <div className="text-center py-16 text-gray-500 dark:text-gray-400">No mentions yet</div>
+        ) : (
+          <div className="space-y-8">
+            {mentionsPosts.length>0 && (
+              <div>
+                <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">Posts</h3>
+                <div className="grid grid-cols-3 gap-1">
+                  {mentionsPosts.map((p:any)=> (
+                    <div key={p._id} className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                      {p.media?.[0] && <img src={p.media[0].thumbnail || p.media[0].url} className="w-full h-full object-cover" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {mentionsReels.length>0 && (
+              <div>
+                <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">Reels</h3>
+                <div className="grid grid-cols-3 gap-1">
+                  {mentionsReels.map((r:any)=> (
+                    <div key={r._id} className="aspect-[9/16] bg-black rounded-lg overflow-hidden">
+                      <video src={r.video.url} poster={r.video.thumbnail} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      )}
+
+      {activeTab==='saved' && isOwnProfile && (
+        (savedPosts.length + savedReels.length === 0) ? (
+          <div className="text-center py-16 text-gray-500 dark:text-gray-400">No saved items yet</div>
+        ) : (
+          <div className="space-y-8">
+            {savedPosts.length>0 && (
+              <div>
+                <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">Posts</h3>
+                <div className="grid grid-cols-3 gap-1">
+                  {savedPosts.map((p:any)=> (
+                    <div key={p._id} className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
+                      {p.media?.[0] && <img src={p.media[0].thumbnail || p.media[0].url} className="w-full h-full object-cover" />}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            {savedReels.length>0 && (
+              <div>
+                <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">Reels</h3>
+                <div className="grid grid-cols-3 gap-1">
+                  {savedReels.map((r:any)=> (
+                    <div key={r._id} className="aspect-[9/16] bg-black rounded-lg overflow-hidden">
+                      <video src={r.video.url} poster={r.video.thumbnail} className="w-full h-full object-cover" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        )
+      )}
+
+      {showEdit && user && (
+        <EditProfileModal
+          user={user}
+          onClose={()=>setShowEdit(false)}
+          onSaved={(u)=>{
+            setUser(prev=> prev ? { ...prev, ...u } : u);
+          }}
+        />
       )}
     </div>
   );

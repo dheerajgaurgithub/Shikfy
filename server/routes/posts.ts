@@ -1,6 +1,7 @@
 import express from 'express';
 import Post from '../models/Post';
 import Like from '../models/Like';
+import Follow from '../models/Follow';
 import Bookmark from '../models/Bookmark';
 import Comment from '../models/Comment';
 import User from '../models/User';
@@ -11,7 +12,7 @@ const router = express.Router();
 
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { caption, media, location, visibility, hashtags } = req.body;
+    const { caption, media, location, visibility, hashtags, allowList, excludeList } = req.body;
 
     const post = await Post.create({
       authorId: req.userId,
@@ -19,6 +20,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       media,
       location,
       visibility: visibility || 'public',
+      allowList: Array.isArray(allowList) ? allowList : [],
+      excludeList: Array.isArray(excludeList) ? excludeList : [],
       hashtags: hashtags || []
     });
 
@@ -40,13 +43,43 @@ router.get('/feed', authenticateToken, async (req: AuthRequest, res) => {
     const limit = 20;
     const skip = (page - 1) * limit;
 
-    const posts = await Post.find({ visibility: { $in: ['public', 'followers'] } })
+    // Precompute relationships for visibility decisions
+    const userId = req.userId!;
+    const [followingDocs, followersDocs] = await Promise.all([
+      Follow.find({ followerId: userId }).select('followingId'),
+      Follow.find({ followingId: userId }).select('followerId')
+    ]);
+    const followingIds = new Set(followingDocs.map(f => String(f.followingId)));
+    const followersIds = new Set(followersDocs.map(f => String(f.followerId)));
+    const mutualIds = new Set<string>();
+    followingIds.forEach(id => { if (followersIds.has(id)) mutualIds.add(id); });
+
+    // Fetch a broader set, then filter in memory to honor all modes including custom and close_friends
+    const candidates = await Post.find({})
       .sort({ createdAt: -1 })
       .skip(skip)
-      .limit(limit)
-      .populate('authorId', 'username displayName profilePic verified');
+      .limit(limit * 2)
+      .populate('authorId', 'username displayName profilePic verified closeFriends');
 
-    res.json(posts);
+    const visible = candidates.filter((p: any) => {
+      const authorId = String(p.authorId?._id || p.authorId);
+      const vis = p.visibility || 'public';
+      if (vis === 'public') return true;
+      if (vis === 'followers') return followingIds.has(authorId);
+      if (vis === 'mutuals') return mutualIds.has(authorId);
+      if (vis === 'custom') {
+        const allowed = (p.allowList || []).map((id: any) => String(id));
+        const excluded = (p.excludeList || []).map((id: any) => String(id));
+        return allowed.includes(userId) && !excluded.includes(userId);
+      }
+      if (vis === 'close_friends') {
+        const cf = (p.authorId?.closeFriends || []).map((id: any) => String(id));
+        return cf.includes(userId);
+      }
+      return true;
+    }).slice(0, limit);
+
+    res.json(visible);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
