@@ -24,10 +24,15 @@ const Profile = () => {
   const [following, setFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  const isOwnProfile = currentUser?._id === id;
+  const isOwnProfile = currentUser?.id === id;
 
   useEffect(() => {
     const fetchProfile = async () => {
+      if (!id) {
+        // No id in URL; nothing to fetch
+        setLoading(false);
+        return;
+      }
       try {
         const [userRes, postsRes] = await Promise.all([
           apiClient.get(`/users/${id}`),

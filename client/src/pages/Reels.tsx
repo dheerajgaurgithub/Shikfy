@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import apiClient from '../api/client';
-import { Heart, MessageCircle, Bookmark, Share2 } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, Share2, PlusCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import CreateReelModal from '../components/CreateReelModal';
 
 const Reels = () => {
   const [reels, setReels] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreate, setShowCreate] = useState(false);
 
   useEffect(() => {
     const fetchReels = async () => {
@@ -32,7 +34,16 @@ const Reels = () => {
 
   return (
     <div className="max-w-md mx-auto px-4 py-8">
-      <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Reels</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Reels</h1>
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-pink-600 text-white hover:from-blue-700 hover:to-pink-700 transition"
+        >
+          <PlusCircle className="w-5 h-5" />
+          <span>Create</span>
+        </button>
+      </div>
 
       {reels.length === 0 ? (
         <div className="text-center py-16">
@@ -106,6 +117,15 @@ const Reels = () => {
             </div>
           ))}
         </div>
+      )}
+      {showCreate && (
+        <CreateReelModal
+          onClose={() => setShowCreate(false)}
+          onReelCreated={(reel) => {
+            setReels((prev) => [reel, ...prev]);
+            setShowCreate(false);
+          }}
+        />
       )}
     </div>
   );
