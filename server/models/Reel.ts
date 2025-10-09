@@ -17,6 +17,8 @@ export interface IReel extends Document {
   visibility?: 'public' | 'followers' | 'mutuals' | 'custom' | 'close_friends';
   allowList?: mongoose.Types.ObjectId[];
   excludeList?: mongoose.Types.ObjectId[];
+  status?: 'published' | 'scheduled' | 'draft';
+  scheduledAt?: Date;
   likesCount: number;
   savesCount: number;
   commentsCount: number;
@@ -47,6 +49,8 @@ const ReelSchema: Schema = new Schema({
   },
   allowList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
   excludeList: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  status: { type: String, enum: ['published', 'scheduled', 'draft'], default: 'published' },
+  scheduledAt: { type: Date },
   likesCount: { type: Number, default: 0 },
   savesCount: { type: Number, default: 0 },
   commentsCount: { type: Number, default: 0 },

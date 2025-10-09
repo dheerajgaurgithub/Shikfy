@@ -23,6 +23,8 @@ const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps) => {
   const [allowList, setAllowList] = useState<string[]>([]);
   const [excludeList, setExcludeList] = useState<string[]>([]);
   const [showAudiencePicker, setShowAudiencePicker] = useState(false);
+  const [status, setStatus] = useState<'published'|'scheduled'|'draft'>('published');
+  const [scheduledAt, setScheduledAt] = useState<string>('');
 
   useEffect(() => {
     if (!file) {
@@ -93,6 +95,8 @@ const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps) => {
           visibility,
           allowList,
           excludeList,
+          status,
+          scheduledAt: status==='scheduled' && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
         });
       } else {
         // Create a standard Post
@@ -103,6 +107,8 @@ const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps) => {
           visibility,
           allowList,
           excludeList,
+          status,
+          scheduledAt: status==='scheduled' && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
         });
       }
 
@@ -141,6 +147,23 @@ const CreatePostModal = ({ onClose, onPostCreated }: CreatePostModalProps) => {
                 />
               ) : (
                 user?.displayName[0].toUpperCase()
+              )}
+            </div>
+
+            {/* Scheduling / Draft */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm text-gray-600 dark:text-gray-300">Publish:</label>
+              <select
+                className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+                value={status}
+                onChange={(e)=>setStatus(e.target.value as any)}
+              >
+                <option value="published">Publish now</option>
+                <option value="scheduled">Schedule</option>
+                <option value="draft">Save as Draft</option>
+              </select>
+              {status==='scheduled' && (
+                <input type="datetime-local" value={scheduledAt} onChange={(e)=>setScheduledAt(e.target.value)} className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white" />
               )}
             </div>
             <div className="flex-1">

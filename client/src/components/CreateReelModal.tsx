@@ -21,6 +21,8 @@ const CreateReelModal = ({ onClose, onReelCreated }: CreateReelModalProps) => {
   const [allowList, setAllowList] = useState<string[]>([]);
   const [excludeList, setExcludeList] = useState<string[]>([]);
   const [showAudiencePicker, setShowAudiencePicker] = useState(false);
+  const [status, setStatus] = useState<'published'|'scheduled'|'draft'>('published');
+  const [scheduledAt, setScheduledAt] = useState<string>('');
 
   useEffect(() => {
     if (!file) {
@@ -81,6 +83,8 @@ const CreateReelModal = ({ onClose, onReelCreated }: CreateReelModalProps) => {
         visibility,
         allowList,
         excludeList,
+        status,
+        scheduledAt: status==='scheduled' && scheduledAt ? new Date(scheduledAt).toISOString() : undefined,
       });
 
       onReelCreated(res.data);
@@ -129,6 +133,23 @@ const CreateReelModal = ({ onClose, onReelCreated }: CreateReelModalProps) => {
             </select>
             {visibility === 'custom' && (
               <button type="button" onClick={()=>setShowAudiencePicker(true)} className="px-3 py-2 bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-800 dark:text-gray-200">Choose audience</button>
+            )}
+          </div>
+
+          {/* Scheduling / Draft */}
+          <div className="flex items-center gap-2">
+            <label className="text-sm text-gray-600 dark:text-gray-300">Publish:</label>
+            <select
+              className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+              value={status}
+              onChange={(e)=>setStatus(e.target.value as any)}
+            >
+              <option value="published">Publish now</option>
+              <option value="scheduled">Schedule</option>
+              <option value="draft">Save as Draft</option>
+            </select>
+            {status==='scheduled' && (
+              <input type="datetime-local" value={scheduledAt} onChange={(e)=>setScheduledAt(e.target.value)} className="px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white" />
             )}
           </div>
 

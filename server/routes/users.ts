@@ -1,19 +1,34 @@
 import express from 'express';
 import User from '../models/User';
+import Block from '../models/Block';
 import Follow from '../models/Follow';
 import Post from '../models/Post';
 import Reel from '../models/Reel';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
-
 router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const user = await User.findById(req.userId).select('-passwordHash');
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json(user);
+    return res.json(user);
+  } catch (error) {
+    return res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Block a user
+router.post('/:id/block', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    if (req.userId === req.params.id) return res.status(400).json({ error: 'Cannot block yourself' });
+    await Block.updateOne(
+      { blockerId: req.userId, blockedId: req.params.id },
+      { $setOnInsert: { blockerId: req.userId, blockedId: req.params.id } },
+      { upsert: true }
+    );
+    res.json({ blocked: true });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -80,8 +95,6 @@ router.patch('/:id', authenticateToken, async (req: AuthRequest, res) => {
       profilePic: string;
       privacySettings: { profileVisibility: 'public' | 'private' };
     }>;
-    delete updates.passwordHash;
-    delete updates.email;
 
     // Enforce 14-day cooldown for username changes
     if (updates.username) {

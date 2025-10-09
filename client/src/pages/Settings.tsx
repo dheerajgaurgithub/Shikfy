@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import apiClient from '../api/client';
-import { Shield, Moon, Sun, Monitor, Lock, Users } from 'lucide-react';
+import { Shield, Moon, Sun, Monitor, Users } from 'lucide-react';
 
 interface MeUser {
   _id: string;
@@ -21,10 +21,14 @@ const Settings = () => {
   const { theme, setTheme } = useTheme();
   const [me, setMe] = useState<MeUser | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savingCF, setSavingCF] = useState(false);
 
   const [profileVisibility, setProfileVisibility] = useState<'public' | 'private'>('public');
   const [showFollowersList, setShowFollowersList] = useState(true);
   const [showFollowingList, setShowFollowingList] = useState(true);
+  const [following, setFollowing] = useState<any[]>([]);
+  const [closeFriends, setCloseFriends] = useState<string[]>([]);
+  const [cfSearch, setCfSearch] = useState('');
 
   useEffect(() => {
     const load = async () => {
@@ -35,6 +39,13 @@ const Settings = () => {
         setProfileVisibility(ps.profileVisibility || 'public');
         setShowFollowersList(ps.showFollowersList !== false);
         setShowFollowingList(ps.showFollowingList !== false);
+        setCloseFriends(res.data.closeFriends || []);
+        // load following for CF manager
+        try {
+          const who = res.data._id || res.data.id;
+          const fl = await apiClient.get(`/users/${who}/following`);
+          setFollowing(fl.data || []);
+        } catch (e) { console.warn('Failed to load following for CF', e); }
       } catch (e) {
         console.error('Failed to load settings', e);
       }
@@ -139,6 +150,61 @@ const Settings = () => {
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>
             </div>
+          </div>
+        </section>
+
+        {/* Close Friends Manager */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl shadow border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <Users className="w-5 h-5 text-gray-600 dark:text-gray-300" />
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Close Friends</h2>
+          </div>
+          <div className="mb-3">
+            <input
+              value={cfSearch}
+              onChange={(e)=>setCfSearch(e.target.value)}
+              placeholder="Search following..."
+              className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+            />
+          </div>
+          <div className="max-h-64 overflow-auto divide-y divide-gray-200 dark:divide-gray-700">
+            {following
+              .filter((u:any)=> u.username?.toLowerCase().includes(cfSearch.toLowerCase()) || u.displayName?.toLowerCase().includes(cfSearch.toLowerCase()))
+              .map((u:any)=> (
+                <label key={u._id} className="flex items-center gap-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={closeFriends.includes(u._id)}
+                    onChange={(e)=> setCloseFriends(prev => e.target.checked ? [...prev, u._id] : prev.filter(id=>id!==u._id))}
+                  />
+                  <img src={u.profilePic || 'https://via.placeholder.com/32'} className="w-8 h-8 rounded-full" />
+                  <div>
+                    <div className="text-gray-900 dark:text-white font-medium">{u.displayName}</div>
+                    <div className="text-gray-500 dark:text-gray-400 text-sm">@{u.username}</div>
+                  </div>
+                </label>
+            ))}
+          </div>
+          <div className="pt-4 flex justify-end">
+            <button
+              disabled={savingCF || !me}
+              onClick={async ()=>{
+                if (!me) return;
+                try {
+                  setSavingCF(true);
+                  await apiClient.patch(`/users/${me._id || me.id}/close-friends`, { userIds: closeFriends });
+                  alert('Close Friends updated');
+                } catch (e) {
+                  console.error('Failed to update close friends', e);
+                  alert('Failed to update close friends');
+                } finally {
+                  setSavingCF(false);
+                }
+              }}
+              className="px-5 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50"
+            >
+              {savingCF ? 'Saving...' : 'Save Close Friends'}
+            </button>
           </div>
         </section>
       </div>

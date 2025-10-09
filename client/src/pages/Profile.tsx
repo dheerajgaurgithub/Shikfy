@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { Settings, Grid, Bookmark as BookmarkIcon, Film, AtSign } from 'lucide-react';
 import EditProfileModal from '../components/EditProfileModal';
 import { useAuth } from '../contexts/AuthContext';
@@ -24,6 +24,7 @@ interface UserProfile {
 
 const Profile = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const [user, setUser] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
@@ -157,16 +158,33 @@ const Profile = () => {
                   <span>Edit Profile</span>
                 </button>
               ) : (
-                <button
-                  onClick={handleFollow}
-                  className={`px-6 py-2 rounded-lg font-semibold transition ${
-                    following
-                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                      : 'bg-gradient-to-r from-blue-600 to-pink-600 text-white hover:from-blue-700 hover:to-pink-700'
-                  }`}
-                >
-                  {following ? 'Following' : 'Follow'}
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={handleFollow}
+                    className={`px-6 py-2 rounded-lg font-semibold transition ${
+                      following
+                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                        : 'bg-gradient-to-r from-blue-600 to-pink-600 text-white hover:from-blue-700 hover:to-pink-700'
+                    }`}
+                  >
+                    {following ? 'Following' : 'Follow'}
+                  </button>
+                  <button
+                    onClick={async ()=>{
+                      try {
+                        const res = await apiClient.post('/chats', { type: 'dm', memberIds: [id] });
+                        const chatId = res.data._id;
+                        navigate(`/chats?chatId=${chatId}`);
+                      } catch (e) {
+                        console.error('Failed to start DM', e);
+                        alert('Failed to start chat');
+                      }
+                    }}
+                    className="px-6 py-2 rounded-lg font-semibold bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
+                  >
+                    Message
+                  </button>
+                </div>
               )}
             </div>
 

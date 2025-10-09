@@ -9,6 +9,13 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
+// Auto-publish scheduled reels when time reached
+async function publishDueReels() {
+  try {
+    await Reel.updateMany({ status: 'scheduled', scheduledAt: { $lte: new Date() } }, { $set: { status: 'published' } });
+  } catch {}
+}
+
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const { caption, video, audio, location, hashtags, visibility, allowList, excludeList } = req.body;
@@ -25,6 +32,19 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       hashtags: hashtags || []
     });
 
+// Who saved this reel (author only)
+router.get('/:id/savers', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const reel = await Reel.findById(req.params.id).select('authorId');
+    if (!reel) return res.status(404).json({ error: 'Reel not found' });
+    if (String(reel.authorId) !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    const savers = await Bookmark.find({ reelId: req.params.id }).populate('userId', 'username displayName profilePic verified');
+    res.json(savers.map((b:any)=> b.userId));
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
     const populatedReel = await Reel.findById(reel._id)
       .populate('authorId', 'username displayName profilePic verified');
 
@@ -37,6 +57,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
 router.get('/feed', authenticateToken, async (req: AuthRequest, res) => {
   try {
+    await publishDueReels();
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
     const skip = (page - 1) * limit;
@@ -60,6 +81,7 @@ router.get('/feed', authenticateToken, async (req: AuthRequest, res) => {
     const visible = candidates.filter((r: any) => {
       const authorId = String(r.authorId?._id || r.authorId);
       const vis = r.visibility || 'public';
+      if ((r.status === 'draft' || r.status === 'scheduled') && authorId !== String(req.userId)) return false;
       if (vis === 'public') return true;
       if (vis === 'followers') return followingIds.has(authorId);
       if (vis === 'mutuals') return mutualIds.has(authorId);
@@ -282,6 +304,82 @@ router.get('/:reelId/comments/:commentId/replies', async (req, res) => {
       .sort({ createdAt: 1 })
       .populate('authorId', 'username displayName profilePic verified');
     res.json(replies);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Like a comment on a reel
+router.post('/:reelId/comments/:commentId/like', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { commentId } = req.params as { reelId: string; commentId: string };
+    const userId = req.userId!;
+    const existing = await Like.findOne({ userId, targetId: commentId, targetType: 'comment' });
+    if (existing) return res.status(400).json({ error: 'Already liked' });
+    await Like.create({ userId, targetId: commentId, targetType: 'comment' });
+    const updated = await Comment.findByIdAndUpdate(commentId, { $inc: { likesCount: 1 } }, { new: true });
+    res.json({ liked: true, likesCount: updated?.likesCount ?? 0 });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Unlike a comment on a reel
+router.delete('/:reelId/comments/:commentId/like', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { commentId } = req.params as { reelId: string; commentId: string };
+    const userId = req.userId!;
+    const like = await Like.findOneAndDelete({ userId, targetId: commentId, targetType: 'comment' });
+    if (!like) return res.status(400).json({ error: 'Not liked' });
+    const updated = await Comment.findByIdAndUpdate(commentId, { $inc: { likesCount: -1 } }, { new: true });
+    res.json({ liked: false, likesCount: updated?.likesCount ?? 0 });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Comment like status (reel)
+router.get('/:reelId/comments/:commentId/like-status', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { commentId } = req.params as { reelId: string; commentId: string };
+    const like = await Like.findOne({ userId: req.userId, targetId: commentId, targetType: 'comment' });
+    res.json({ liked: !!like });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Edit reel (caption, video props, visibility, schedule)
+router.patch('/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const reel = await Reel.findById(req.params.id);
+    if (!reel) return res.status(404).json({ error: 'Reel not found' });
+    if (String(reel.authorId) !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    const { caption, video, audio, visibility, allowList, excludeList, status, scheduledAt, location } = req.body;
+    if (caption !== undefined) (reel as any).caption = caption;
+    if (location !== undefined) (reel as any).location = location;
+    if (video !== undefined) (reel as any).video = video;
+    if (audio !== undefined) (reel as any).audio = audio;
+    if (visibility) (reel as any).visibility = visibility;
+    if (allowList) (reel as any).allowList = allowList;
+    if (excludeList) (reel as any).excludeList = excludeList;
+    if (status) (reel as any).status = status;
+    if (scheduledAt !== undefined) (reel as any).scheduledAt = scheduledAt ? new Date(scheduledAt) : undefined;
+    await reel.save();
+    const populated = await Reel.findById(reel._id).populate('authorId', 'username displayName profilePic verified');
+    res.json(populated);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Download reel assets (author only): returns URLs to video and original audio
+router.get('/:id/download', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const reel = await Reel.findById(req.params.id);
+    if (!reel) return res.status(404).json({ error: 'Reel not found' });
+    if (String(reel.authorId) !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    res.json({ videoUrl: (reel as any).video?.url, audioUrl: (reel as any).audio?.url });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

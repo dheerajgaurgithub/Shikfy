@@ -10,9 +10,16 @@ import { authenticateToken, AuthRequest } from '../middleware/auth';
 
 const router = express.Router();
 
+// Auto-publish any scheduled posts whose time has come
+async function publishDuePosts() {
+  try {
+    await Post.updateMany({ status: 'scheduled', scheduledAt: { $lte: new Date() } }, { $set: { status: 'published' } });
+  } catch {}
+}
+
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { caption, media, location, visibility, hashtags, allowList, excludeList } = req.body;
+    const { caption, media, location, visibility, hashtags, allowList, excludeList, status, scheduledAt } = req.body;
 
     const post = await Post.create({
       authorId: req.userId,
@@ -22,6 +29,8 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       visibility: visibility || 'public',
       allowList: Array.isArray(allowList) ? allowList : [],
       excludeList: Array.isArray(excludeList) ? excludeList : [],
+      status: status === 'draft' ? 'draft' : (status === 'scheduled' ? 'scheduled' : 'published'),
+      scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
       hashtags: hashtags || []
     });
 
@@ -39,6 +48,7 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
 
 router.get('/feed', authenticateToken, async (req: AuthRequest, res) => {
   try {
+    await publishDuePosts();
     const page = parseInt(req.query.page as string) || 1;
     const limit = 20;
     const skip = (page - 1) * limit;
@@ -64,6 +74,8 @@ router.get('/feed', authenticateToken, async (req: AuthRequest, res) => {
     const visible = candidates.filter((p: any) => {
       const authorId = String(p.authorId?._id || p.authorId);
       const vis = p.visibility || 'public';
+      // Exclude drafts and scheduled (unless viewer is author)
+      if ((p.status === 'draft' || p.status === 'scheduled') && authorId !== String(req.userId)) return false;
       if (vis === 'public') return true;
       if (vis === 'followers') return followingIds.has(authorId);
       if (vis === 'mutuals') return mutualIds.has(authorId);
@@ -80,6 +92,42 @@ router.get('/feed', authenticateToken, async (req: AuthRequest, res) => {
     }).slice(0, limit);
 
     res.json(visible);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Edit post (caption, media, visibility, schedule)
+router.patch('/:id', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (String(post.authorId) !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    const { caption, media, visibility, allowList, excludeList, status, scheduledAt, location } = req.body;
+    if (caption !== undefined) (post as any).caption = caption;
+    if (location !== undefined) (post as any).location = location;
+    if (media !== undefined) (post as any).media = media;
+    if (visibility) (post as any).visibility = visibility;
+    if (allowList) (post as any).allowList = allowList;
+    if (excludeList) (post as any).excludeList = excludeList;
+    if (status) (post as any).status = status;
+    if (scheduledAt !== undefined) (post as any).scheduledAt = scheduledAt ? new Date(scheduledAt) : undefined;
+    await post.save();
+    const populated = await Post.findById(post._id).populate('authorId', 'username displayName profilePic verified');
+    res.json(populated);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Who saved this post (author only)
+router.get('/:id/savers', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const post = await Post.findById(req.params.id).select('authorId');
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (String(post.authorId) !== req.userId) return res.status(403).json({ error: 'Forbidden' });
+    const savers = await Bookmark.find({ postId: req.params.id }).populate('userId', 'username displayName profilePic verified');
+    res.json(savers.map((b:any)=> b.userId));
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -352,6 +400,46 @@ router.get('/:postId/comments/:commentId/replies', async (req, res) => {
       .sort({ createdAt: 1 })
       .populate('authorId', 'username displayName profilePic verified');
     res.json(replies);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Like a comment on a post
+router.post('/:postId/comments/:commentId/like', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { postId, commentId } = req.params as { postId: string; commentId: string };
+    const userId = req.userId!;
+    const existing = await Like.findOne({ userId, targetId: commentId, targetType: 'comment' });
+    if (existing) return res.status(400).json({ error: 'Already liked' });
+    await Like.create({ userId, targetId: commentId, targetType: 'comment' });
+    const updated = await Comment.findByIdAndUpdate(commentId, { $inc: { likesCount: 1 } }, { new: true });
+    res.json({ liked: true, likesCount: updated?.likesCount ?? 0 });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Unlike a comment on a post
+router.delete('/:postId/comments/:commentId/like', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { commentId } = req.params as { postId: string; commentId: string };
+    const userId = req.userId!;
+    const like = await Like.findOneAndDelete({ userId, targetId: commentId, targetType: 'comment' });
+    if (!like) return res.status(400).json({ error: 'Not liked' });
+    const updated = await Comment.findByIdAndUpdate(commentId, { $inc: { likesCount: -1 } }, { new: true });
+    res.json({ liked: false, likesCount: updated?.likesCount ?? 0 });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Comment like status (post)
+router.get('/:postId/comments/:commentId/like-status', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { commentId } = req.params as { postId: string; commentId: string };
+    const like = await Like.findOne({ userId: req.userId, targetId: commentId, targetType: 'comment' });
+    res.json({ liked: !!like });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

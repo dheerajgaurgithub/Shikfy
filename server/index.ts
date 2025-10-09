@@ -15,6 +15,7 @@ import bookmarksRoutes from './routes/bookmarks';
 import chatsRoutes from './routes/chats';
 import messagesRoutes from './routes/messages';
 import uploadsRoutes from './routes/uploads';
+import devRoutes from './routes/dev';
 
 const app = express();
 const httpServer = createServer(app);
@@ -50,6 +51,9 @@ app.use('/api/bookmarks', bookmarksRoutes);
 app.use('/api/chats', chatsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/uploads', uploadsRoutes);
+if (process.env.NODE_ENV !== 'production') {
+  app.use('/api/dev', devRoutes);
+}
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });

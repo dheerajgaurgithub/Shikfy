@@ -14,6 +14,7 @@ import Saved from './pages/Saved';
 import PostDetail from './pages/PostDetail';
 import ReelDetail from './pages/ReelDetail';
 import Settings from './pages/Settings';
+import Chats from './pages/Chats';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -151,11 +152,22 @@ function App() {
                 </PrivateRoute>
               }
             />
+            <Route
+              path="/chats"
+              element={
+                <PrivateRoute>
+                  <Chats />
+                </PrivateRoute>
+              }
+            />
+            <Route
+              path="/chat"
+              element={<Navigate to="/chats" />}
+            />
           </Routes>
         </Router>
       </AuthProvider>
     </ThemeProvider>
   );
 }
-
 export default App;

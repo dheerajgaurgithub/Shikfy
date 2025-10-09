@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2 } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Send } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 
@@ -32,6 +32,11 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
   const [bookmarked, setBookmarked] = useState(false);
   const [likesCount, setLikesCount] = useState(post.likesCount);
   const [showMenu, setShowMenu] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [following, setFollowing] = useState<any[]>([]);
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [shareSearch, setShareSearch] = useState('');
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     const fetchStatuses = async () => {
@@ -49,6 +54,19 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
 
     fetchStatuses();
   }, [post._id]);
+
+  useEffect(() => {
+    const loadFollowing = async () => {
+      try {
+        if (!user?.id) return;
+        const fl = await apiClient.get(`/users/${user.id}/following`);
+        setFollowing(fl.data || []);
+      } catch (e) {
+        console.warn('Failed to load following for share', e);
+      }
+    };
+    if (showShare) loadFollowing();
+  }, [showShare, user?.id]);
 
   const handleLike = async () => {
     try {
@@ -188,7 +206,7 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
 
       <div className="p-4">
         <div className="flex items-center justify-between mb-4">
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-6">
             <button
               onClick={handleLike}
               className="flex items-center space-x-1 group"
@@ -214,6 +232,9 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
                 {post.commentsCount}
               </span>
             </Link>
+            <button onClick={()=>setShowShare(true)} className="group">
+              <Send className="w-6 h-6 text-gray-700 dark:text-gray-300 group-hover:text-blue-500" />
+            </button>
           </div>
 
           <button
@@ -242,7 +263,60 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
           </div>
         )}
       </div>
-    </div>
+    {showShare && (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowShare(false)}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-4" onClick={(e)=>e.stopPropagation()}>
+          <div className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Share post via DM</div>
+          <input
+            value={shareSearch}
+            onChange={(e)=>setShareSearch(e.target.value)}
+            placeholder="Search following..."
+            className="w-full mb-2 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white"
+          />
+          <div className="max-h-72 overflow-auto divide-y divide-gray-200 dark:divide-gray-700">
+            {following
+              .filter((u:any)=> u.username?.toLowerCase().includes(shareSearch.toLowerCase()) || u.displayName?.toLowerCase().includes(shareSearch.toLowerCase()))
+              .map((u:any)=> (
+                <label key={u._id} className="flex items-center gap-3 py-2">
+                  <input
+                    type="checkbox"
+                    checked={selectedUserIds.includes(u._id)}
+                    onChange={(e)=> setSelectedUserIds(prev => e.target.checked ? [...prev, u._id] : prev.filter(id=>id!==u._id))}
+                  />
+                  <img src={u.profilePic || 'https://via.placeholder.com/32'} className="w-8 h-8 rounded-full" />
+                  <div>
+                    <div className="text-gray-900 dark:text-white font-medium">{u.displayName}</div>
+                    <div className="text-gray-500 dark:text-gray-400 text-sm">@{u.username}</div>
+                  </div>
+                </label>
+              ))}
+          </div>
+          <div className="pt-3 flex justify-end gap-2">
+            <button onClick={()=>setShowShare(false)} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg text-gray-800 dark:text-gray-200">Cancel</button>
+            <button disabled={sharing || selectedUserIds.length===0} onClick={async ()=>{
+              try {
+                setSharing(true);
+                const url = `${window.location.origin}/post/${post._id}`;
+                for (const uid of selectedUserIds) {
+                  const chatRes = await apiClient.post('/chats', { type: 'dm', memberIds: [uid] });
+                  const chatId = chatRes.data._id;
+                  await apiClient.post('/messages', { chatId, content: `Check this post: ${url}` });
+                }
+                setShowShare(false);
+                setSelectedUserIds([]);
+                alert('Shared successfully');
+              } catch (e) {
+                console.error('Failed to share', e);
+                alert('Failed to share');
+              } finally {
+                setSharing(false);
+              }
+            }} className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50">{sharing? 'Sharing...' : 'Send'}</button>
+          </div>
+        </div>
+      </div>
+    )}
+  </div>
   );
 };
 
