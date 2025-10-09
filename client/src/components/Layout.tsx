@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, Film, User, Heart, Bookmark, Settings, LogOut, Menu, X, MessageSquare } from 'lucide-react';
+import { Home, Search, Film, Heart, Bookmark, Settings, LogOut, Menu, X, MessageSquare } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 import logo from '../logo.png';
@@ -17,7 +17,7 @@ const Layout = ({ children }: LayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
   const [showMobileMenu, setShowMobileMenu] = useState(false);
-  const [chatsCount, setChatsCount] = useState<number>(0);
+  const [chatsUnread, setChatsUnread] = useState<number>(0);
   const [notifUnread, setNotifUnread] = useState<number>(0);
   const dispatch = useAppDispatch();
 
@@ -25,12 +25,16 @@ const Layout = ({ children }: LayoutProps) => {
     let active = true;
     const load = async () => {
       try {
-        const res = await apiClient.get('/chats');
-        if (active) setChatsCount(Array.isArray(res.data) ? res.data.length : 0);
+        const res = await apiClient.get('/chats/unread-count');
+        if (active) setChatsUnread(Number(res.data?.count||0));
       } catch {}
     };
     if (user?.id) load();
-    return ()=>{ active=false };
+    const onFocus = () => { if (user?.id) load(); };
+    const onUnread = (e: any) => { if (typeof e?.detail?.count === 'number') setChatsUnread(e.detail.count); };
+    window.addEventListener('focus', onFocus);
+    window.addEventListener('chats:unread', onUnread as any);
+    return ()=>{ active=false; window.removeEventListener('focus', onFocus); window.removeEventListener('chats:unread', onUnread as any); };
   }, [user?.id]);
 
   // notifications: fetch unread count and listen to socket events
@@ -57,13 +61,18 @@ const Layout = ({ children }: LayoutProps) => {
             read: false,
           } as any));
           setNotifUnread((c)=> c+1);
+          // update chats unread for message notifications
+          if ((n.type === 'message' || n.data?.kind === 'message')) {
+            setChatsUnread((c)=> c+1);
+          }
         });
         return () => { try { s.disconnect(); } catch {} };
       } catch {}
     };
     if (user?.id) {
-      const cleanup = init();
-      return () => { active=false; if (typeof cleanup === 'function') cleanup(); };
+      let socketCleanup: (()=>void)|undefined;
+      init().then((ret:any)=>{ if (typeof ret === 'function') socketCleanup = ret; }).catch(()=>{});
+      return () => { active=false; if (socketCleanup) socketCleanup(); };
     }
   }, [user?.id, dispatch]);
 
@@ -111,8 +120,8 @@ const Layout = ({ children }: LayoutProps) => {
                     <Icon className="w-6 h-6 mr-3" />
                     <span className="flex items-center gap-2">
                       {item.label}
-                      {item.label==='Messages' && chatsCount>0 && (
-                        <span className={`text-xs px-2 py-0.5 rounded-full ${isActive? 'bg-white/20 text-white' : 'bg-blue-600 text-white'}`}>{chatsCount}</span>
+                      {item.label==='Messages' && chatsUnread>0 && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full ${isActive? 'bg-white/20 text-white' : 'bg-blue-600 text-white'}`}>{chatsUnread}</span>
                       )}
                       {item.label==='Notifications' && notifUnread>0 && (
                         <span className={`text-xs px-2 py-0.5 rounded-full ${isActive? 'bg-white/20 text-white' : 'bg-red-600 text-white'}`}>{notifUnread}</span>

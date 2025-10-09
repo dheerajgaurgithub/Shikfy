@@ -24,6 +24,7 @@ export interface IUser extends Document {
   followersCount: number;
   followingCount: number;
   postsCount: number;
+  lastSeen?: Date;
   lastUsernameChangeAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -52,7 +53,8 @@ const UserSchema: Schema = new Schema({
   },
   followersCount: { type: Number, default: 0 },
   followingCount: { type: Number, default: 0 },
-  postsCount: { type: Number, default: 0 }
+  postsCount: { type: Number, default: 0 },
+  lastSeen: { type: Date }
 }, {
   timestamps: true
 });

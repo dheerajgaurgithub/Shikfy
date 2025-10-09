@@ -222,12 +222,14 @@ router.post('/:id/like', authenticateToken, async (req: AuthRequest, res) => {
     );
 
     if (post && post.authorId.toString() !== userId) {
-      await Notification.create({
+      const notif = await Notification.create({
         userId: post.authorId,
         type: 'like',
         fromUserId: userId,
         postId: postId
       });
+      const io = (req as any).app.get('io');
+      if (io) io.emit('notification:new', { _id: notif._id, type: 'like', targetUserId: String(post.authorId), fromUserId: userId, createdAt: notif.createdAt, data: { postId } });
     }
 
     res.json({ success: true, liked: true, likesCount: post?.likesCount });
@@ -378,13 +380,15 @@ router.post('/:id/comments', authenticateToken, async (req: AuthRequest, res) =>
 
     const post = await Post.findById(postId);
     if (post && post.authorId.toString() !== req.userId) {
-      await Notification.create({
+      const notif = await Notification.create({
         userId: post.authorId,
         type: 'comment',
-        fromUserId: req.userId,
+        fromUserId: req.userId!,
         postId: postId,
         commentId: comment._id
       });
+      const io = (req as any).app.get('io');
+      if (io) io.emit('notification:new', { _id: notif._id, type: 'comment', targetUserId: String(post.authorId), fromUserId: req.userId, createdAt: notif.createdAt, data: { postId, commentId: String(comment._id) } });
     }
 
     res.status(201).json(populatedComment);

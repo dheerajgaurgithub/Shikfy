@@ -42,6 +42,8 @@ const Notifications = () => {
       case 'comment':
         return 'commented on your post';
       case 'follow':
+        if (notification.payload?.pending) return 'requested to follow you';
+        if (notification.payload?.accepted) return 'accepted your follow request';
         return 'started following you';
       default:
         return 'interacted with you';
@@ -117,6 +119,18 @@ const Notifications = () => {
                 <p className="text-sm text-gray-500 dark:text-gray-400">
                   {formatDate(notification.createdAt)}
                 </p>
+                {notification.type==='follow' && notification.payload?.pending && (
+                  <div className="mt-2 flex gap-2">
+                    <button onClick={async ()=>{
+                      try { await apiClient.post(`/users/follow-requests/${notification.fromUserId._id}/accept`); setNotifications(prev=> prev.map(n=> n._id===notification._id? { ...n, payload: { accepted: true } } : n)); }
+                      catch {}
+                    }} className="px-3 py-1 text-sm rounded bg-blue-600 text-white">Accept</button>
+                    <button onClick={async ()=>{
+                      try { await apiClient.post(`/users/follow-requests/${notification.fromUserId._id}/decline`); setNotifications(prev=> prev.filter(n=> n._id!==notification._id)); }
+                      catch {}
+                    }} className="px-3 py-1 text-sm rounded bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200">Decline</button>
+                  </div>
+                )}
               </div>
 
               {notification.postId && notification.postId.media?.[0] && (

@@ -48,6 +48,18 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         console.error('Failed to parse saved user:', error);
         localStorage.removeItem('user');
       }
+      // refresh user from API to ensure profilePic and latest counts
+      (async ()=>{
+        try {
+          const me = await apiClient.get('/users/me');
+          const refreshed = me.data;
+          const mapped = refreshed? { ...refreshed, id: refreshed._id || refreshed.id } : null;
+          if (mapped) {
+            localStorage.setItem('user', JSON.stringify(mapped));
+            setUser(mapped);
+          }
+        } catch {}
+      })();
     }
     setLoading(false);
   }, []);

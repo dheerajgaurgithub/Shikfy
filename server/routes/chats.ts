@@ -104,7 +104,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
     const chats = await Chat.find({ members: req.userId })
       .sort({ lastMessageAt: -1, updatedAt: -1 })
       .limit(100)
-      .populate('members', 'username displayName profilePic verified')
+      .populate('members', 'username displayName profilePic verified lastSeen')
       .populate('lastMessageId');
 
     res.json(chats);
@@ -117,7 +117,7 @@ router.get('/', authenticateToken, async (req: AuthRequest, res) => {
 router.get('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const chat = await Chat.findById(req.params.id)
-      .populate('members', 'username displayName profilePic verified')
+      .populate('members', 'username displayName profilePic verified lastSeen')
       .populate('lastMessageId');
 
     if (!chat) return res.status(404).json({ error: 'Chat not found' });

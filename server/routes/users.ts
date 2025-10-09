@@ -1,3 +1,4 @@
+import Notification from '../models/Notification';
 import express from 'express';
 import User from '../models/User';
 import Block from '../models/Block';
@@ -29,6 +30,21 @@ router.post('/:id/block', authenticateToken, async (req: AuthRequest, res) => {
       { upsert: true }
     );
     res.json({ blocked: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Block status between current user and target user
+router.get('/:id/block-status', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const targetId = req.params.id;
+    const me = req.userId!;
+    const [byYou, byThem] = await Promise.all([
+      Block.findOne({ blockerId: me, blockedId: targetId }).lean(),
+      Block.findOne({ blockerId: targetId, blockedId: me }).lean(),
+    ]);
+    res.json({ blockedByYou: !!byYou, blockedYou: !!byThem });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -130,24 +146,67 @@ router.post('/:id/follow', authenticateToken, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Cannot follow yourself' });
     }
 
-    const existingFollow = await Follow.findOne({
-      followerId: currentUserId,
-      followingId: targetUserId
-    });
-
-    if (existingFollow) {
+    const existing = await Follow.findOne({ followerId: currentUserId, followingId: targetUserId });
+    if (existing) {
       return res.status(400).json({ error: 'Already following' });
     }
 
-    await Follow.create({
-      followerId: currentUserId,
-      followingId: targetUserId
-    });
+    const target = await User.findById(targetUserId).select('privacySettings');
+    const isPrivate = (target as any)?.privacySettings?.profileVisibility === 'private';
+    if (isPrivate) {
+      // create a follow request notification (pending)
+      const notif = await Notification.create({
+        userId: targetUserId,
+        type: 'follow',
+        fromUserId: currentUserId,
+        payload: { pending: true }
+      } as any);
+      const io = (req as any).app.get('io');
+      if (io) io.emit('notification:new', { _id: notif._id, type: 'follow', targetUserId: targetUserId, fromUserId: currentUserId, createdAt: notif.createdAt, data: { pending: true } });
+      return res.json({ success: true, requested: true });
+    } else {
+      await Follow.create({ followerId: currentUserId, followingId: targetUserId });
+      await User.findByIdAndUpdate(currentUserId, { $inc: { followingCount: 1 } });
+      await User.findByIdAndUpdate(targetUserId, { $inc: { followersCount: 1 } });
+      try {
+        const notif = await Notification.create({ userId: targetUserId, type: 'follow', fromUserId: currentUserId, payload: { pending: false } } as any);
+        const io = (req as any).app.get('io');
+        if (io) io.emit('notification:new', { _id: notif._id, type: 'follow', targetUserId: targetUserId, fromUserId: currentUserId, createdAt: notif.createdAt, data: {} });
+      } catch {}
+      return res.json({ success: true, following: true });
+    }
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
-    await User.findByIdAndUpdate(currentUserId, { $inc: { followingCount: 1 } });
+// Accept a follow request (current user is target, :fromId is requester)
+router.post('/follow-requests/:fromId/accept', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const targetUserId = req.userId!;
+    const fromId = req.params.fromId;
+    const existing = await Follow.findOne({ followerId: fromId, followingId: targetUserId });
+    if (existing) return res.json({ success: true, following: true });
+    await Follow.create({ followerId: fromId as any, followingId: targetUserId as any });
+    await User.findByIdAndUpdate(fromId, { $inc: { followingCount: 1 } });
     await User.findByIdAndUpdate(targetUserId, { $inc: { followersCount: 1 } });
+    // Notify requester that request accepted
+    try {
+      const notif = await Notification.create({ userId: fromId as any, type: 'follow', fromUserId: targetUserId as any, payload: { accepted: true } } as any);
+      const io = (req as any).app.get('io');
+      if (io) io.emit('notification:new', { _id: notif._id, type: 'follow', targetUserId: fromId, fromUserId: targetUserId, createdAt: notif.createdAt, data: { accepted: true } });
+    } catch {}
+    res.json({ success: true, accepted: true });
+  } catch {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 
-    res.json({ success: true, following: true });
+// Decline a follow request (no follow created)
+router.post('/follow-requests/:fromId/decline', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    // Optionally notify requester of decline. For now just respond ok.
+    res.json({ success: true, declined: true });
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }

@@ -16,6 +16,7 @@ import chatsRoutes from './routes/chats';
 import messagesRoutes from './routes/messages';
 import uploadsRoutes from './routes/uploads';
 import devRoutes from './routes/dev';
+import User from './models/User';
 
 const app = express();
 const httpServer = createServer(app);
@@ -66,7 +67,9 @@ io.on('connection', (socket) => {
 
   socket.on('user:online', (userId: string) => {
     onlineUsers.set(userId, socket.id);
-    io.emit('user:status', { userId, online: true });
+    // update lastSeen now
+    try { User.findByIdAndUpdate(userId, { $set: { lastSeen: new Date() } }).exec(); } catch {}
+    io.emit('user:status', { userId, online: true, lastSeen: new Date().toISOString() });
   });
 
   socket.on('user:typing', (data: { chatId: string; userId: string; username: string }) => {
@@ -88,7 +91,9 @@ io.on('connection', (socket) => {
     for (const [userId, socketId] of onlineUsers.entries()) {
       if (socketId === socket.id) {
         onlineUsers.delete(userId);
-        io.emit('user:status', { userId, online: false });
+        const when = new Date();
+        try { User.findByIdAndUpdate(userId, { $set: { lastSeen: when } }).exec(); } catch {}
+        io.emit('user:status', { userId, online: false, lastSeen: when.toISOString() });
         break;
       }
     }
