@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "tsx watch index.ts",
     "build": "tsc -p tsconfig.json",
-    "postbuild": "node scripts/copy-client.js",
+    "postbuild": "sh -c \"cd ../client && npm ci && npm run build\" && node scripts/copy-client.js",
     "start": "node dist/index.js",
     "test": "echo \"No tests yet\""
   },
