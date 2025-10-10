@@ -26,9 +26,20 @@ import storiesRoutes from './routes/stories';
 
 const app = express();
 const httpServer = createServer(app);
+// Build allowed origins from env
+const defaultOrigins = ['http://localhost:5173', 'http://localhost:4173', 'https://shikfy.netlify.app'];
+const envOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+const allowedOrigins = Array.from(new Set([...
+  defaultOrigins,
+  ...envOrigins
+]));
+
 const io = new Server(httpServer, {
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: allowedOrigins,
     credentials: true
   }
 });
@@ -38,8 +49,19 @@ app.set('io', io);
 
 const PORT = process.env.PORT || 3001;
 
+// Trust reverse proxy (Render) for secure cookies
+app.set('trust proxy', 1);
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: function (origin, callback) {
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    return callback(new Error('CORS: origin not allowed: ' + origin));
+  },
+  credentials: true
+}));
+// Preflight
+app.options('*', cors({
+  origin: allowedOrigins,
   credentials: true
 }));
 

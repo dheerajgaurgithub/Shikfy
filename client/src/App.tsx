@@ -46,7 +46,7 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  return user ? <Navigate to="/" /> : <>{children}</>;
+  return user ? <Navigate to="/home" /> : <>{children}</>;
 };
 
 function App() {
@@ -79,6 +79,14 @@ function App() {
             />
             <Route
               path="/"
+              element={
+                <PublicRoute>
+                  <Landing />
+                </PublicRoute>
+              }
+            />
+            <Route
+              path="/home"
               element={
                 <PrivateRoute>
                   <Home />
