@@ -22,6 +22,7 @@ const Settings = () => {
   const [me, setMe] = useState<MeUser | null>(null);
   const [saving, setSaving] = useState(false);
   const [savingCF, setSavingCF] = useState(false);
+  const [savingMsg, setSavingMsg] = useState(false);
 
   const [profileVisibility, setProfileVisibility] = useState<'public' | 'private'>('public');
   const [showFollowersList, setShowFollowersList] = useState(true);
@@ -29,6 +30,15 @@ const Settings = () => {
   const [following, setFollowing] = useState<any[]>([]);
   const [closeFriends, setCloseFriends] = useState<string[]>([]);
   const [cfSearch, setCfSearch] = useState('');
+
+  // Messaging / status
+  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
+  const [autoReplyText, setAutoReplyText] = useState('I am currently away and will reply later.');
+  const [statusMessage, setStatusMessage] = useState('');
+
+  // Profile views
+  const [views, setViews] = useState<any[]>([]);
+  const [loadingViews, setLoadingViews] = useState(false);
 
   useEffect(() => {
     const load = async () => {
@@ -40,6 +50,9 @@ const Settings = () => {
         setShowFollowersList(ps.showFollowersList !== false);
         setShowFollowingList(ps.showFollowingList !== false);
         setCloseFriends(res.data.closeFriends || []);
+        setAutoReplyEnabled(!!res.data.autoReplyEnabled);
+        setAutoReplyText(res.data.autoReplyText || 'I am currently away and will reply later.');
+        setStatusMessage(res.data.statusMessage || '');
         // load following for CF manager
         try {
           const who = res.data._id || res.data.id;
@@ -73,6 +86,24 @@ const Settings = () => {
     }
   };
 
+  const handleSaveMessaging = async () => {
+    if (!me) return;
+    try {
+      setSavingMsg(true);
+      await apiClient.patch(`/users/${me._id || me.id}`, {
+        autoReplyEnabled,
+        autoReplyText,
+        statusMessage,
+      });
+      alert('Messaging settings saved');
+    } catch (e) {
+      console.error('Failed to save messaging settings', e);
+      alert('Failed to save settings');
+    } finally {
+      setSavingMsg(false);
+    }
+  };
+
   return (
     <div className="max-w-3xl mx-auto px-4 py-8">
       <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">Settings</h1>
@@ -95,6 +126,65 @@ const Settings = () => {
               <Moon className="w-4 h-4 inline mr-1" /> Dark
             </button>
           </div>
+        </section>
+
+        {/* Messaging */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl shadow border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Messaging</h2>
+          </div>
+          <div className="space-y-4">
+            <label className="flex items-center justify-between">
+              <span className="font-medium text-gray-900 dark:text-white">Enable Auto-Reply</span>
+              <input type="checkbox" checked={autoReplyEnabled} onChange={(e)=> setAutoReplyEnabled(e.target.checked)} />
+            </label>
+            <div>
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Auto-Reply Text</label>
+              <input value={autoReplyText} onChange={(e)=> setAutoReplyText(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white" />
+            </div>
+            <div>
+              <label className="block text-sm text-gray-600 dark:text-gray-400 mb-1">Status Message</label>
+              <input value={statusMessage} onChange={(e)=> setStatusMessage(e.target.value)} className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white" />
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Shown under your name in chat headers.</p>
+            </div>
+            <div className="pt-2 flex justify-end">
+              <button disabled={savingMsg || !me} onClick={handleSaveMessaging} className="px-5 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50">{savingMsg ? 'Saving...' : 'Save Messaging'}</button>
+            </div>
+          </div>
+        </section>
+
+        {/* Profile Views */}
+        <section className="bg-white dark:bg-gray-800 rounded-2xl shadow border border-gray-200 dark:border-gray-700 p-6">
+          <div className="flex items-center space-x-3 mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Profile Views</h2>
+          </div>
+          <div className="flex items-center justify-between mb-3">
+            <div className="text-sm text-gray-600 dark:text-gray-400">Only you can see who viewed your profile.</div>
+            <button disabled={!me || loadingViews} onClick={async ()=>{
+              if (!me) return; setLoadingViews(true);
+              try {
+                const r = await apiClient.get(`/users/${me._id || me.id}/profile-views`);
+                setViews(r.data || []);
+              } catch {}
+              finally { setLoadingViews(false); }
+            }} className="px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">{loadingViews? 'Loading…':'Refresh'}</button>
+          </div>
+          {views.length===0 ? (
+            <div className="text-sm text-gray-500 dark:text-gray-400">No recent views.</div>
+          ) : (
+            <div className="max-h-64 overflow-auto divide-y divide-gray-200 dark:divide-gray-700">
+              {views.map((v:any)=> (
+                <div key={v._id} className="flex items-center gap-3 py-2">
+                  <img src={v.viewerId?.profilePic || 'https://via.placeholder.com/32'} className="w-8 h-8 rounded-full" />
+                  <div>
+                    <div className="text-gray-900 dark:text-white font-medium">{v.viewerId?.displayName}</div>
+                    <div className="text-gray-500 dark:text-gray-400 text-xs">@{v.viewerId?.username}</div>
+                  </div>
+                  <div className="ml-auto text-xs text-gray-500 dark:text-gray-400">{new Date(v.createdAt).toLocaleString()}</div>
+                </div>
+              ))}
+            </div>
+          )}
         </section>
 
         {/* Privacy & Control */}
@@ -138,7 +228,7 @@ const Settings = () => {
             <div className="pt-4 border-t border-gray-200 dark:border-gray-700 text-sm text-gray-600 dark:text-gray-400 space-y-2">
               <div>• Post visibility per post is available via the Create Post modal (Public/Followers/Mutuals/Custom).</div>
               <div>• Approving per-post viewers, Close Friends, and restricting by content type are not enabled in this build.</div>
-              <div>• Profile views are not shown. Blocking without unfollowing and group feeds are not yet implemented.</div>
+              <div>• Block without unfollowing: when blocking a user, you can choose to keep the follow count unchanged.</div>
             </div>
 
             <div className="pt-4 flex justify-end">

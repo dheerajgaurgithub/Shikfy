@@ -12,6 +12,13 @@ const Notifications = () => {
       try {
         const response = await apiClient.get('/notifications');
         setNotifications(response.data);
+        // mark all as read when viewing notifications
+        try {
+          await apiClient.patch('/notifications/mark-all-read');
+          const now = new Date().toISOString();
+          setNotifications(prev => prev.map(n => ({ ...n, readAt: now })));
+          window.dispatchEvent(new CustomEvent('notifications:unread', { detail: { count: 0 } }));
+        } catch {}
       } catch (error) {
         console.error('Failed to fetch notifications:', error);
       } finally {

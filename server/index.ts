@@ -17,6 +17,11 @@ import messagesRoutes from './routes/messages';
 import uploadsRoutes from './routes/uploads';
 import devRoutes from './routes/dev';
 import User from './models/User';
+import hubsRoutes from './routes/hubs';
+import Message from './models/Message';
+import Chat from './models/Chat';
+import searchRoutes from './routes/search';
+import storiesRoutes from './routes/stories';
 
 const app = express();
 const httpServer = createServer(app);
@@ -51,6 +56,9 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/bookmarks', bookmarksRoutes);
 app.use('/api/chats', chatsRoutes);
 app.use('/api/messages', messagesRoutes);
+app.use('/api/hubs', hubsRoutes);
+app.use('/api/search', searchRoutes);
+app.use('/api/stories', storiesRoutes);
 app.use('/api/uploads', uploadsRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/dev', devRoutes);
@@ -100,6 +108,29 @@ io.on('connection', (socket) => {
     console.log('User disconnected:', socket.id);
   });
 });
+
+// Simple in-process scheduler for scheduled messages (dev-friendly)
+setInterval(async () => {
+  try {
+    const due = await Message.find({ status: 'scheduled', scheduledAt: { $lte: new Date() } }).limit(50);
+    for (const m of due) {
+      (m as any).status = 'sent';
+      await m.save();
+      try {
+        await Chat.findByIdAndUpdate(m.chatId, { lastMessageId: m._id, lastMessageAt: m.createdAt });
+      } catch {}
+      io.to(String(m.chatId)).emit('message:new', {
+        _id: m._id,
+        chatId: m.chatId,
+        senderId: m.senderId,
+        content: (m as any).content,
+        attachments: (m as any).attachments || [],
+        replyToMessageId: (m as any).replyToMessageId,
+        createdAt: m.createdAt,
+      });
+    }
+  } catch {}
+}, 60 * 1000);
 
 httpServer.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);

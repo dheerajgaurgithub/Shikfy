@@ -15,6 +15,11 @@ import PostDetail from './pages/PostDetail';
 import ReelDetail from './pages/ReelDetail';
 import Settings from './pages/Settings';
 import Chats from './pages/Chats';
+import Followers from './pages/Followers';
+import Following from './pages/Following';
+import Hubs from './pages/Hubs';
+import HubDetail from './pages/HubDetail';
+import Suggestions from './pages/Suggestions';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -160,6 +165,11 @@ function App() {
                 </PrivateRoute>
               }
             />
+            <Route path="/profile/:id/followers" element={<PrivateRoute><Followers /></PrivateRoute>} />
+            <Route path="/profile/:id/following" element={<PrivateRoute><Following /></PrivateRoute>} />
+            <Route path="/h" element={<PrivateRoute><Hubs /></PrivateRoute>} />
+            <Route path="/h/:slug" element={<PrivateRoute><HubDetail /></PrivateRoute>} />
+            <Route path="/suggestions" element={<PrivateRoute><Suggestions /></PrivateRoute>} />
             <Route
               path="/chat"
               element={<Navigate to="/chats" />}

@@ -1,9 +1,12 @@
 import Notification from '../models/Notification';
+import ProfileView from '../models/ProfileView';
 import express from 'express';
 import User from '../models/User';
 import Block from '../models/Block';
 import Follow from '../models/Follow';
 import Post from '../models/Post';
+import Like from '../models/Like';
+import Comment from '../models/Comment';
 import Reel from '../models/Reel';
 import { authenticateToken, AuthRequest } from '../middleware/auth';
 
@@ -24,12 +27,53 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res) => {
 router.post('/:id/block', authenticateToken, async (req: AuthRequest, res) => {
   try {
     if (req.userId === req.params.id) return res.status(400).json({ error: 'Cannot block yourself' });
+    const keepFollow = Boolean((req.body as any)?.keepFollow);
     await Block.updateOne(
       { blockerId: req.userId, blockedId: req.params.id },
       { $setOnInsert: { blockerId: req.userId, blockedId: req.params.id } },
       { upsert: true }
     );
+    if (keepFollow) {
+      try { await Follow.updateOne({ followerId: req.userId, followingId: req.params.id }, { $set: { blockKeepsFollow: true } }); } catch {}
+    }
     res.json({ blocked: true });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// Get followers list (basic profile info)
+router.get('/:id/followers', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const target = await User.findById(req.params.id).select('privacySettings');
+    if (!target) return res.status(404).json({ error: 'User not found' });
+    const isSelf = req.userId === req.params.id;
+    const isPrivate = target.privacySettings?.profileVisibility === 'private';
+    if (isPrivate && !isSelf) return res.status(403).json({ error: 'Forbidden' });
+
+    const followersDocs = await Follow.find({ followingId: req.params.id }).select('followerId').limit(500);
+    const followerIds = followersDocs.map(f => f.followerId);
+    const users = await User.find({ _id: { $in: followerIds } })
+      .select('username displayName profilePic verified');
+    res.json(users);
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
+
+// List profile views (owner only)
+router.get('/:id/profile-views', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    if (req.userId !== req.params.id) return res.status(403).json({ error: 'Forbidden' });
+    const page = parseInt((req.query.page as string) || '1');
+    const limit = Math.min(parseInt((req.query.limit as string) || '30'), 100);
+    const skip = (page - 1) * limit;
+    const views = await ProfileView.find({ viewedUserId: req.params.id })
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .populate('viewerId', 'username displayName profilePic verified');
+    res.json(views);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
   }
@@ -92,6 +136,14 @@ router.get('/:id', async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
+    // record a profile view if authenticated viewer and not self
+    try {
+      const viewerId = (req as any).userId;
+      if (viewerId && String(viewerId) !== String(req.params.id)) {
+        // respect privacy: owner can disable recording/display, but we still record by default
+        await ProfileView.create({ viewerId, viewedUserId: req.params.id } as any);
+      }
+    } catch {}
     res.json(user);
   } catch (error) {
     res.status(500).json({ error: 'Server error' });
@@ -212,6 +264,7 @@ router.post('/follow-requests/:fromId/decline', authenticateToken, async (req: A
   }
 });
 
+// Unfollow
 router.delete('/:id/follow', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const targetUserId = req.params.id;
@@ -235,6 +288,77 @@ router.delete('/:id/follow', authenticateToken, async (req: AuthRequest, res) =>
   }
 });
 
+// Suggestions with pagination and multiple signals
+router.get('/:id/suggestions', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { id } = req.params;
+    if (req.userId !== id) return res.status(403).json({ error: 'Forbidden' });
+    const page = Math.max(1, parseInt(String(req.query.page||'1')));
+    const limit = Math.min(50, Math.max(5, parseInt(String(req.query.limit||'20'))));
+
+    const followingDocs = await Follow.find({ followerId: id }).select('followingId').limit(2000);
+    const followingIds = new Set(followingDocs.map(f=> String(f.followingId)));
+    const followerDocs = await Follow.find({ followingId: id }).select('followerId').limit(2000);
+    const followerIds = followerDocs.map(f=> String(f.followerId));
+
+    const sFollowers = new Map<string, number>();
+    for (const fid of followerIds) { if (fid!==id && !followingIds.has(fid)) sFollowers.set(fid, (sFollowers.get(fid)||0)+5); }
+
+    const sampleFollowing = Array.from(followingIds).slice(0, 15);
+    const fofCounts: Record<string, number> = {};
+    if (sampleFollowing.length) {
+      const fofLists = await Promise.all(sampleFollowing.map(uid=> Follow.find({ followerId: uid }).select('followingId').limit(500)));
+      fofLists.forEach(list=> list.forEach(doc=>{ const uid = String(doc.followingId); if (uid!==id && !followingIds.has(uid)) fofCounts[uid] = (fofCounts[uid]||0)+1; }));
+    }
+
+    const since = new Date(Date.now() - 90*24*3600*1000);
+    const myPosts = await Post.find({ authorId: id, createdAt: { $gte: since } }).select('_id hubId').limit(500);
+    const myPostIds = myPosts.map(p=> String(p._id));
+    const myHubs = myPosts.map(p=> String(p.hubId)).filter(Boolean);
+    const [likesOnMe, commentsOnMe, myLikes, myComments] = await Promise.all([
+      Like.find({ postId: { $in: myPostIds } }).select('userId').limit(2000),
+      Comment.find({ postId: { $in: myPostIds } }).select('authorId').limit(2000),
+      Like.find({ userId: id, createdAt: { $gte: since } }).select('postId').limit(1000),
+      Comment.find({ authorId: id, createdAt: { $gte: since } }).select('postId').limit(1000),
+    ]);
+    const interactedUserBoost: Record<string, number> = {};
+    likesOnMe.forEach(l=>{ const uid = String((l as any).userId); if (uid!==id && !followingIds.has(uid)) interactedUserBoost[uid]=(interactedUserBoost[uid]||0)+2; });
+    commentsOnMe.forEach(c=>{ const uid = String((c as any).authorId); if (uid!==id && !followingIds.has(uid)) interactedUserBoost[uid]=(interactedUserBoost[uid]||0)+3; });
+    const targetPostIds = [...new Set([...(myLikes as any[]).map(x=> String(x.postId)), ...(myComments as any[]).map(x=> String(x.postId))])];
+    const targetPosts = targetPostIds.length ? await Post.find({ _id: { $in: targetPostIds } }).select('authorId') : [];
+    targetPosts.forEach(p=>{ const uid = String((p as any).authorId); if (uid!==id && !followingIds.has(uid)) interactedUserBoost[uid]=(interactedUserBoost[uid]||0)+2; });
+
+    const hubAuthorsBoost: Record<string, number> = {};
+    if (myHubs.length) {
+      const recentHubAuthors = await Post.aggregate([
+        { $match: { hubId: { $in: myHubs }, createdAt: { $gte: since } } },
+        { $group: { _id: '$authorId', count: { $sum: 1 } } },
+        { $sort: { count: -1 } },
+        { $limit: 500 }
+      ]);
+      recentHubAuthors.forEach((row:any)=>{ const uid = String(row._id); if (uid!==id && !followingIds.has(uid)) hubAuthorsBoost[uid] = (hubAuthorsBoost[uid]||0) + Math.min(5, row.count); });
+    }
+
+    const scores: Record<string, number> = {};
+    const bump = (uid:string, val:number)=>{ scores[uid] = (scores[uid]||0) + val; };
+    for (const [uid, val] of (Array.from(sFollowers.entries()))) bump(uid, val);
+    for (const [uid, val] of Object.entries(fofCounts)) bump(uid, Math.min(5, val));
+    for (const [uid, val] of Object.entries(interactedUserBoost)) bump(uid, val);
+    for (const [uid, val] of Object.entries(hubAuthorsBoost)) bump(uid, val);
+
+    const candidateIds = Object.keys(scores);
+    if (candidateIds.length === 0) return res.json({ items: [], page, total: 0, hasMore: false });
+    const users = await User.find({ _id: { $in: candidateIds } }).select('username displayName profilePic verified bio').lean();
+    const enriched = users.map(u=> ({ ...u, score: scores[String(u._id)] || 0, mutuals: fofCounts[String(u._id)] || 0 }));
+    enriched.sort((a:any,b:any)=> (b.score||0) - (a.score||0));
+    const total = enriched.length;
+    const start = (page-1)*limit; const end = start + limit;
+    const items = enriched.slice(start, end);
+    res.json({ items, page, total, hasMore: end < total });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
 router.get('/:id/following-status', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const follow = await Follow.findOne({

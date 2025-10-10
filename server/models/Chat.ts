@@ -7,6 +7,7 @@ export interface IChat extends Document {
   lastMessageId?: mongoose.Types.ObjectId;
   lastMessageAt?: Date;
   createdBy: mongoose.Types.ObjectId;
+  inboxes?: { userId: mongoose.Types.ObjectId; folder: 'primary'|'general'|'requests'; accepted: boolean }[];
   settings?: {
     disappearing24h?: boolean;
     nicknames?: { userId: mongoose.Types.ObjectId; name: string }[];
@@ -23,6 +24,11 @@ const ChatSchema: Schema = new Schema({
   lastMessageId: { type: Schema.Types.ObjectId, ref: 'Message' },
   lastMessageAt: { type: Date },
   createdBy: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  inboxes: [{
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+    folder: { type: String, enum: ['primary','general','requests'], default: 'primary' },
+    accepted: { type: Boolean, default: true }
+  }],
   settings: {
     disappearing24h: { type: Boolean, default: false },
     nicknames: [{

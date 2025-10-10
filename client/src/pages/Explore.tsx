@@ -98,7 +98,7 @@ const Explore = () => {
       ) : (
         <div className="grid grid-cols-3 gap-1">
           {posts.map((post) => (
-            <div key={post._id} className="relative group aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer">
+            <Link to={`/post/${post._id}`} key={post._id} className="relative group aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden cursor-pointer">
               {post.media && post.media[0] && (
                 <img
                   src={post.media[0].thumbnail || post.media[0].url}
@@ -118,7 +118,7 @@ const Explore = () => {
                   </div>
                 </div>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

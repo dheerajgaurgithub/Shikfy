@@ -37,6 +37,7 @@ const Profile = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'posts'|'reels'|'mentions'|'saved'>('posts');
   const [showEdit, setShowEdit] = useState(false);
+  const [hasActiveStory, setHasActiveStory] = useState(false);
 
   const isOwnProfile = currentUser?.id === id;
 
@@ -55,6 +56,11 @@ const Profile = () => {
           const statusRes = await apiClient.get(`/users/${id}/following-status`);
           setFollowing(statusRes.data.following);
         }
+        // Check active stories
+        try {
+          const s = await apiClient.get(`/stories/user/${id}`);
+          setHasActiveStory(Array.isArray(s.data) && s.data.length > 0);
+        } catch {}
       } catch (error) {
         console.error('Failed to fetch profile:', error);
       } finally {
@@ -124,68 +130,70 @@ const Profile = () => {
   }
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg p-8 mb-8 border border-gray-200 dark:border-gray-700">
-        <div className="flex flex-col md:flex-row items-center md:items-start space-y-4 md:space-y-0 md:space-x-8">
-          <div className="w-32 h-32 rounded-full bg-gradient-to-r from-blue-500 to-pink-500 flex items-center justify-center text-white text-4xl font-bold">
-            {user.profilePic ? (
-              <img
-                src={user.profilePic}
-                alt={user.displayName}
-                className="w-full h-full rounded-full object-cover"
-              />
+    <div className="max-w-4xl mx-auto px-4 py-6">
+      {/* Banner / Cover */}
+      <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow">
+        <div className="relative">
+          <div className="w-full h-40 md:h-56 bg-gradient-to-r from-gray-200 to-gray-100 dark:from-gray-700 dark:to-gray-800">
+            {user as any && (user as any).bannerUrl ? (
+              <img src={(user as any).bannerUrl} alt="cover" className="w-full h-full object-cover" />
+            ) : null}
+          </div>
+          <div className={`absolute -bottom-10 left-6 w-24 h-24 rounded-full ${hasActiveStory ? 'p-[2px] bg-gradient-to-tr from-pink-500 to-yellow-400' : ''} border-4 border-white dark:border-gray-800`}>
+            <div className={`w-full h-full rounded-full ${hasActiveStory ? 'bg-white dark:bg-gray-800 p-[2px]' : 'bg-transparent'} overflow-hidden`}> 
+              {user.profilePic ? (
+                <img src={user.profilePic} alt={user.displayName} className="w-full h-full object-cover" />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-white text-4xl font-bold bg-gradient-to-r from-blue-500 to-pink-500">
+                  {user.displayName[0].toUpperCase()}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="pt-12 px-6 pb-6">
+          <div className="flex flex-col md:flex-row items-center md:items-start md:justify-between gap-4">
+            <div className="text-center md:text-left">
+              <div className="flex items-center justify-center md:justify-start gap-2">
+                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{user.username}</h1>
+                {user.verified && (
+                  <svg className="w-6 h-6 text-blue-500" fill="currentColor" viewBox="0 0 20 20"><path d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z"/></svg>
+                )}
+              </div>
+            </div>
+            {isOwnProfile ? (
+              <button onClick={()=>setShowEdit(true)} className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition flex items-center space-x-2">
+                <Settings className="w-4 h-4" />
+                <span>Edit Profile</span>
+              </button>
             ) : (
-              user.displayName[0].toUpperCase()
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={handleFollow}
+                  className={`px-6 py-2 rounded-lg font-semibold transition ${
+                    following
+                      ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                      : 'bg-gradient-to-r from-blue-600 to-pink-600 text-white hover:from-blue-700 hover:to-pink-700'
+                  }`}
+                >
+                  {following ? 'Following' : 'Follow'}
+                </button>
+                <button onClick={async ()=>{
+                  try { const res = await apiClient.post('/chats', { type: 'dm', memberIds: [id] }); navigate(`/chats?chatId=${res.data._id}`); } catch { alert('Failed to start chat'); }
+                }} className="px-6 py-2 rounded-lg font-semibold bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600">Message</button>
+              </div>
             )}
           </div>
 
           <div className="flex-1 text-center md:text-left">
             <div className="flex flex-col md:flex-row items-center md:items-center space-y-4 md:space-y-0 md:space-x-4 mb-4">
-              <div className="flex items-center space-x-2">
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                  {user.username}
-                </h1>
+              <div className="flex items-center space-x-2"> 
                 {user.verified && (
                   <svg className="w-6 h-6 text-blue-500" fill="currentColor" viewBox="0 0 20 20">
                     <path d="M6.267 3.455a3.066 3.066 0 001.745-.723 3.066 3.066 0 013.976 0 3.066 3.066 0 001.745.723 3.066 3.066 0 012.812 2.812c.051.643.304 1.254.723 1.745a3.066 3.066 0 010 3.976 3.066 3.066 0 00-.723 1.745 3.066 3.066 0 01-2.812 2.812 3.066 3.066 0 00-1.745.723 3.066 3.066 0 01-3.976 0 3.066 3.066 0 00-1.745-.723 3.066 3.066 0 01-2.812-2.812 3.066 3.066 0 00-.723-1.745 3.066 3.066 0 010-3.976 3.066 3.066 0 00.723-1.745 3.066 3.066 0 012.812-2.812zm7.44 5.252a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" />
                   </svg>
                 )}
               </div>
-
-              {isOwnProfile ? (
-                <button onClick={()=>setShowEdit(true)} className="px-6 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition flex items-center space-x-2">
-                  <Settings className="w-4 h-4" />
-                  <span>Edit Profile</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={handleFollow}
-                    className={`px-6 py-2 rounded-lg font-semibold transition ${
-                      following
-                        ? 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
-                        : 'bg-gradient-to-r from-blue-600 to-pink-600 text-white hover:from-blue-700 hover:to-pink-700'
-                    }`}
-                  >
-                    {following ? 'Following' : 'Follow'}
-                  </button>
-                  <button
-                    onClick={async ()=>{
-                      try {
-                        const res = await apiClient.post('/chats', { type: 'dm', memberIds: [id] });
-                        const chatId = res.data._id;
-                        navigate(`/chats?chatId=${chatId}`);
-                      } catch (e) {
-                        console.error('Failed to start DM', e);
-                        alert('Failed to start chat');
-                      }
-                    }}
-                    className="px-6 py-2 rounded-lg font-semibold bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 hover:bg-gray-200 dark:hover:bg-gray-600"
-                  >
-                    Message
-                  </button>
-                </div>
-              )}
             </div>
 
             <div className="flex justify-center md:justify-start space-x-8 mb-4">
@@ -196,20 +204,20 @@ const Profile = () => {
                 <div className="text-sm text-gray-500 dark:text-gray-400">Posts</div>
               </div>
               {(user.privacySettings?.showFollowersList !== false) && (
-                <div className="text-center">
+                <button onClick={()=> navigate(`/profile/${id}/followers`)} className="text-center">
                   <div className="text-xl font-bold text-gray-900 dark:text-white">
                     {user.followersCount}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Followers</div>
-                </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 underline">Followers</div>
+                </button>
               )}
               {(user.privacySettings?.showFollowingList !== false) && (
-                <div className="text-center">
+                <button onClick={()=> navigate(`/profile/${id}/following`)} className="text-center">
                   <div className="text-xl font-bold text-gray-900 dark:text-white">
                     {user.followingCount}
                   </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400">Following</div>
-                </div>
+                  <div className="text-sm text-gray-500 dark:text-gray-400 underline">Following</div>
+                </button>
               )}
             </div>
 
@@ -223,7 +231,7 @@ const Profile = () => {
         </div>
       </div>
 
-      <div className="border-t border-gray-200 dark:border-gray-700 mb-8">
+      <div className="border-t border-gray-200 dark:border-gray-700 mb-8 mt-6">
         <div className="flex justify-center space-x-8 py-4">
           <button onClick={()=>setActiveTab('posts')} className={`flex items-center space-x-2 font-semibold pt-4 -mt-[1px] ${activeTab==='posts'?'text-gray-900 dark:text-white border-t-2 border-gray-900 dark:border-white':'text-gray-500 dark:text-gray-400'}`}>
             <Grid className="w-5 h-5" /> <span>POSTS</span>

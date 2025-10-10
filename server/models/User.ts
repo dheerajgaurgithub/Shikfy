@@ -14,6 +14,9 @@ export interface IUser extends Document {
   languages: string[];
   themePref: 'light' | 'dark' | 'system';
   closeFriends?: mongoose.Types.ObjectId[];
+  autoReplyEnabled?: boolean;
+  autoReplyText?: string;
+  statusMessage?: string;
   privacySettings: {
     showProfileViews: boolean;
     allowAnonymousStoryViews: boolean;
@@ -44,6 +47,9 @@ const UserSchema: Schema = new Schema({
   languages: [{ type: String, default: ['en'] }],
   themePref: { type: String, enum: ['light', 'dark', 'system'], default: 'system' },
   closeFriends: [{ type: Schema.Types.ObjectId, ref: 'User' }],
+  autoReplyEnabled: { type: Boolean, default: false },
+  autoReplyText: { type: String, default: '' },
+  statusMessage: { type: String, default: '' },
   privacySettings: {
     showProfileViews: { type: Boolean, default: true },
     allowAnonymousStoryViews: { type: Boolean, default: false },

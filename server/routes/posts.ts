@@ -14,16 +14,39 @@ const router = express.Router();
 async function publishDuePosts() {
   try {
     await Post.updateMany({ status: 'scheduled', scheduledAt: { $lte: new Date() } }, { $set: { status: 'published' } });
+
+// Vote in a poll
+router.post('/:id/polls/vote', authenticateToken, async (req: AuthRequest, res) => {
+  try {
+    const { optionId } = req.body as { optionId: string };
+    const post = await Post.findById(req.params.id);
+    if (!post) return res.status(404).json({ error: 'Post not found' });
+    if (!(post as any).poll) return res.status(400).json({ error: 'No poll on this post' });
+    if ((post as any).poll.expiresAt && new Date((post as any).poll.expiresAt) < new Date()) return res.status(400).json({ error: 'Poll expired' });
+    // prevent multi-vote by user: naive approach using Notification or separate collection; for now in-memory check is not viable, so keep simple
+    // Increment count for selected option
+    const idx = (post as any).poll.options.findIndex((o:any)=> String(o.id)===String(optionId));
+    if (idx<0) return res.status(400).json({ error: 'Invalid option' });
+    (post as any).poll.options[idx].count = Number((post as any).poll.options[idx].count||0) + 1;
+    await post.save();
+    const io = (req as any).app.get('io');
+    if (io) io.emit('post:pollUpdate', { postId: post._id, poll: (post as any).poll });
+    res.json({ success: true, poll: (post as any).poll });
+  } catch (error) {
+    res.status(500).json({ error: 'Server error' });
+  }
+});
   } catch {}
 }
 
 router.post('/', authenticateToken, async (req: AuthRequest, res) => {
   try {
-    const { caption, media, location, visibility, hashtags, allowList, excludeList, status, scheduledAt } = req.body;
+    const { caption, richContent, media, location, visibility, hashtags, allowList, excludeList, status, scheduledAt, coAuthors, poll, hubId } = req.body;
 
     const post = await Post.create({
       authorId: req.userId,
       caption,
+      richContent: richContent || '',
       media,
       location,
       visibility: visibility || 'public',
@@ -31,6 +54,13 @@ router.post('/', authenticateToken, async (req: AuthRequest, res) => {
       excludeList: Array.isArray(excludeList) ? excludeList : [],
       status: status === 'draft' ? 'draft' : (status === 'scheduled' ? 'scheduled' : 'published'),
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined,
+      coAuthors: Array.isArray(coAuthors) ? coAuthors : [],
+      poll: poll && poll.question && Array.isArray(poll.options) ? {
+        question: String(poll.question),
+        options: poll.options.map((o:any)=> ({ id: String(o.id||o.text), text: String(o.text), count: Number(o.count||0) })),
+        expiresAt: poll.expiresAt ? new Date(poll.expiresAt) : undefined
+      } : undefined,
+      hubId: hubId || undefined,
       hashtags: hashtags || []
     });
 
@@ -102,16 +132,28 @@ router.patch('/:id', authenticateToken, async (req: AuthRequest, res) => {
   try {
     const post = await Post.findById(req.params.id);
     if (!post) return res.status(404).json({ error: 'Post not found' });
-    if (String(post.authorId) !== req.userId) return res.status(403).json({ error: 'Forbidden' });
-    const { caption, media, visibility, allowList, excludeList, status, scheduledAt, location } = req.body;
+    // allow co-authors to edit limited fields
+    const isAuthor = String(post.authorId) === req.userId;
+    const isCoAuthor = Array.isArray((post as any).coAuthors) && (post as any).coAuthors.map(String).includes(String(req.userId));
+    if (!isAuthor && !isCoAuthor) return res.status(403).json({ error: 'Forbidden' });
+    const { caption, richContent, media, visibility, allowList, excludeList, status, scheduledAt, location, coAuthors, poll } = req.body;
     if (caption !== undefined) (post as any).caption = caption;
     if (location !== undefined) (post as any).location = location;
     if (media !== undefined) (post as any).media = media;
+    if (richContent !== undefined) (post as any).richContent = richContent;
     if (visibility) (post as any).visibility = visibility;
     if (allowList) (post as any).allowList = allowList;
     if (excludeList) (post as any).excludeList = excludeList;
     if (status) (post as any).status = status;
     if (scheduledAt !== undefined) (post as any).scheduledAt = scheduledAt ? new Date(scheduledAt) : undefined;
+    if (coAuthors && isAuthor) (post as any).coAuthors = coAuthors; // only author can change co-authors
+    if (poll && isAuthor) {
+      (post as any).poll = poll && poll.question && Array.isArray(poll.options) ? {
+        question: String(poll.question),
+        options: poll.options.map((o:any)=> ({ id: String(o.id||o.text), text: String(o.text), count: Number(o.count||0) })),
+        expiresAt: poll.expiresAt ? new Date(poll.expiresAt) : undefined
+      } : undefined;
+    }
     await post.save();
     const populated = await Post.findById(post._id).populate('authorId', 'username displayName profilePic verified');
     res.json(populated);

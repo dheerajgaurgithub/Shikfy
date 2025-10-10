@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, Film, Heart, Bookmark, Settings, LogOut, Menu, X, MessageSquare } from 'lucide-react';
+import { Home, Search, Film, Heart, Bookmark, Settings, LogOut, Menu, X, MessageSquare, Plus } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 import logo from '../logo.png';
 import { io as socketIO } from 'socket.io-client';
 import { useAppDispatch } from '../store';
-import { addNotification, setNotifications } from '../store/slices/notificationsSlice';
+import { addNotification } from '../store/slices/notificationsSlice';
+import CreatePostModal from './CreatePostModal';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -20,6 +21,8 @@ const Layout = ({ children }: LayoutProps) => {
   const [chatsUnread, setChatsUnread] = useState<number>(0);
   const [notifUnread, setNotifUnread] = useState<number>(0);
   const dispatch = useAppDispatch();
+  const [showCreatePicker, setShowCreatePicker] = useState(false);
+  const [showCreatePost, setShowCreatePost] = useState(false);
 
   useEffect(()=>{
     let active = true;
@@ -72,7 +75,9 @@ const Layout = ({ children }: LayoutProps) => {
     if (user?.id) {
       let socketCleanup: (()=>void)|undefined;
       init().then((ret:any)=>{ if (typeof ret === 'function') socketCleanup = ret; }).catch(()=>{});
-      return () => { active=false; if (socketCleanup) socketCleanup(); };
+      const onNotifUnread = (e:any)=>{ if (typeof e?.detail?.count === 'number') setNotifUnread(e.detail.count); };
+      window.addEventListener('notifications:unread', onNotifUnread as any);
+      return () => { active=false; if (socketCleanup) socketCleanup(); window.removeEventListener('notifications:unread', onNotifUnread as any); };
     }
   }, [user?.id, dispatch]);
 
@@ -130,6 +135,15 @@ const Layout = ({ children }: LayoutProps) => {
                   </Link>
                 );
               })}
+
+              {/* Create entry */}
+              <button
+                onClick={()=> setShowCreatePicker(true)}
+                className="w-full flex items-center px-4 py-3 text-sm font-medium rounded-xl transition text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700"
+              >
+                <Plus className="w-6 h-6 mr-3" />
+                Create
+              </button>
 
               <button
                 onClick={handleLogout}
@@ -241,6 +255,33 @@ const Layout = ({ children }: LayoutProps) => {
           </main>
         </div>
       </div>
+
+      {/* Create picker modal */}
+      {showCreatePicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-800 shadow-2xl p-4">
+            <div className="flex items-center justify-between mb-2">
+              <div className="text-lg font-semibold text-gray-900 dark:text-white">Create</div>
+              <button onClick={()=> setShowCreatePicker(false)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="space-y-2">
+              <button onClick={()=>{ setShowCreatePicker(false); setShowCreatePost(true); }} className="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-left">Post</button>
+              <button onClick={()=>{ setShowCreatePicker(false); navigate('/live'); }} className="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-left">Live Video</button>
+              <button onClick={()=>{ setShowCreatePicker(false); navigate('/reels'); }} className="w-full px-4 py-3 rounded-xl bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white text-left">Reel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Post composer modal */}
+      {showCreatePost && (
+        <CreatePostModal
+          onClose={()=> setShowCreatePost(false)}
+          onPostCreated={()=> setShowCreatePost(false)}
+        />
+      )}
     </div>
   );
 };
