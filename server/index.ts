@@ -74,9 +74,8 @@ if (process.env.NODE_ENV === 'production') {
   // Expect client build copied to server/dist/public at build time
   const clientDist = path.resolve(__dirname, 'public');
   app.use(express.static(clientDist));
-  // SPA fallback: let API routes pass through
-  app.get('*', (req, res, next) => {
-    if (req.path.startsWith('/api')) return next();
+  // SPA fallback: let API routes pass through (Express 5 compatible)
+  app.get(/^(?!\/api).*/, (req, res) => {
     res.sendFile(path.join(clientDist, 'index.html'));
   });
 }
