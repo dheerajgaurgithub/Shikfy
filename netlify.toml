@@ -1,0 +1,21 @@
+[build]
+  base = "client"
+  publish = "dist"
+  command = "npm ci && npm run build"
+
+[build.environment]
+  NODE_VERSION = "18"
+
+# Proxy API to your Render server (replace with your API origin)
+# Example:
+# [[redirects]]
+#   from = "/api/*"
+#   to = "https://shikfy.onrender.com/:splat"
+#   status = 200
+#   force = true
+
+# SPA fallback for client-side routing
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
