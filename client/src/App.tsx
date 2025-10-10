@@ -20,6 +20,15 @@ import Following from './pages/Following';
 import Hubs from './pages/Hubs';
 import HubDetail from './pages/HubDetail';
 import Suggestions from './pages/Suggestions';
+import About from './pages/About';
+import Careers from './pages/Careers';
+import Press from './pages/Press';
+import HelpCenter from './pages/HelpCenter';
+import Safety from './pages/Safety';
+import Guidelines from './pages/Guidelines';
+import Terms from './pages/Terms';
+import Privacy from './pages/Privacy';
+import Cookies from './pages/Cookies';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -182,6 +191,16 @@ function App() {
               path="/chat"
               element={<Navigate to="/chats" />}
             />
+            {/* Public content pages */}
+            <Route path="/about" element={<PublicRoute><About /></PublicRoute>} />
+            <Route path="/careers" element={<PublicRoute><Careers /></PublicRoute>} />
+            <Route path="/press" element={<PublicRoute><Press /></PublicRoute>} />
+            <Route path="/help" element={<PublicRoute><HelpCenter /></PublicRoute>} />
+            <Route path="/safety" element={<PublicRoute><Safety /></PublicRoute>} />
+            <Route path="/guidelines" element={<PublicRoute><Guidelines /></PublicRoute>} />
+            <Route path="/terms" element={<PublicRoute><Terms /></PublicRoute>} />
+            <Route path="/privacy" element={<PublicRoute><Privacy /></PublicRoute>} />
+            <Route path="/cookies" element={<PublicRoute><Cookies /></PublicRoute>} />
           </Routes>
         </Router>
       </AuthProvider>
