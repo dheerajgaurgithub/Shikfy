@@ -1,6 +1,7 @@
 import dotenv from 'dotenv';
 dotenv.config();
 import express from 'express';
+import path from 'path';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
@@ -67,6 +68,18 @@ if (process.env.NODE_ENV !== 'production') {
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
+
+// In production, serve the client build (Vite) with SPA fallback
+if (process.env.NODE_ENV === 'production') {
+  // Expect client build copied to server/dist/public at build time
+  const clientDist = path.resolve(__dirname, 'public');
+  app.use(express.static(clientDist));
+  // SPA fallback: let API routes pass through
+  app.get('*', (req, res, next) => {
+    if (req.path.startsWith('/api')) return next();
+    res.sendFile(path.join(clientDist, 'index.html'));
+  });
+}
 
 const onlineUsers = new Map<string, string>();
 
