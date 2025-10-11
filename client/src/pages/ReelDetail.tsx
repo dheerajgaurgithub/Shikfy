@@ -382,7 +382,7 @@ const ReelDetail = () => {
       </div>
       {showEdit && reel && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowEdit(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-4" onClick={(e)=>e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-4">
             <div className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Edit Reel</div>
             <div className="space-y-3">
               <div>
@@ -430,7 +430,7 @@ const ReelDetail = () => {
       )}
       {showSavers && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowSavers(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-4" onClick={(e)=>e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-4">
             <div className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Saved by</div>
             <div className="max-h-80 overflow-auto divide-y divide-gray-200 dark:divide-gray-700">
               {savers.map((u:any)=> (
@@ -452,7 +452,7 @@ const ReelDetail = () => {
       )}
       {showShare && reel && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>setShowShare(false)}>
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-4" onClick={(e)=>e.stopPropagation()}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-4">
             <div className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Share reel via DM</div>
             <input
               value={shareSearch}

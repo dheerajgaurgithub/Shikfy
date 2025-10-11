@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, Heart, MessageCircle, Users, Sparkles, Shield, Globe, PlayCircle, Lock, Bell, Image, Group, Send, Twitter, Instagram, Linkedin, ArrowRight, Zap } from 'lucide-react';
+import { Camera, Heart, MessageCircle, Users, Sparkles, Shield, Globe, PlayCircle, Bell, Image, Group, Send, Twitter, Instagram, Linkedin, ArrowRight, Zap } from 'lucide-react';
+import darkLogo from '../darklogo.png';
 
 const Landing = () => {
   return (
@@ -12,7 +13,7 @@ const Landing = () => {
             <div className="flex items-center gap-2 group">
               <div className="relative">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-pink-600 rounded-lg blur opacity-0 group-hover:opacity-75 transition duration-500"></div>
-                <Camera className="relative w-7 h-7 sm:w-8 sm:h-8 text-blue-600 dark:text-blue-400" />
+                <img src={darkLogo} alt="Shikfy" className="relative w-7 h-7 sm:w-8 sm:h-8 object-contain" />
               </div>
               <span className="text-xl sm:text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                 Shikfy
@@ -194,7 +195,7 @@ const Landing = () => {
               <div className="flex items-center gap-2 mb-3 sm:mb-4 group">
                 <div className="relative">
                   <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-pink-600 rounded-lg blur opacity-0 group-hover:opacity-75 transition duration-500"></div>
-                  <Camera className="relative w-6 h-6 sm:w-7 sm:h-7 text-blue-600 dark:text-blue-400" />
+                  <img src={darkLogo} alt="Shikfy" className="relative w-6 h-6 sm:w-7 sm:h-7 object-contain" />
                 </div>
                 <span className="text-lg sm:text-xl font-bold text-gray-900 dark:text-white">Shikfy</span>
               </div>

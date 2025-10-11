@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Camera, Eye, EyeOff, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import { Eye, EyeOff, ArrowRight, CheckCircle2, AlertCircle } from 'lucide-react';
+import darkLogo from '../darklogo.png';
 import { useAuth } from '../contexts/AuthContext';
 
 const Signup = () => {
@@ -54,7 +55,7 @@ const Signup = () => {
           <div className="flex items-center justify-center gap-2 sm:gap-3 mb-6 sm:mb-8 group">
             <div className="relative">
               <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-pink-600 rounded-lg blur opacity-0 group-hover:opacity-75 transition duration-500"></div>
-              <Camera className="relative w-8 h-8 sm:w-10 sm:h-10 text-blue-600 dark:text-blue-400" />
+              <img src={darkLogo} alt="Shikfy" className="relative w-8 h-8 sm:w-10 sm:h-10 object-contain" />
             </div>
             <span className="text-2xl sm:text-3xl lg:text-4xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
               Shikfy

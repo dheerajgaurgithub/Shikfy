@@ -3,11 +3,12 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Film, LogOut, Menu, X, MessageSquare, Plus, Compass, Settings, User, Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
-import logo from '../logo.png';
 import { io as socketIO } from 'socket.io-client';
 import { useAppDispatch } from '../store';
 import { addNotification } from '../store/slices/notificationsSlice';
 import CreatePostModal from './CreatePostModal';
+import lightLogo from '../lightlogo.png';
+import darkLogo from '../darklogo.png';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -23,6 +24,34 @@ const Layout = ({ children }: LayoutProps) => {
   const dispatch = useAppDispatch();
   const [showCreatePicker, setShowCreatePicker] = useState(false);
   const [showCreatePost, setShowCreatePost] = useState(false);
+  const [isDark, setIsDark] = useState<boolean>(() => {
+    const hasDarkClass = typeof document !== 'undefined' && document.documentElement.classList.contains('dark');
+    if (hasDarkClass) return true;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  });
+  const logoSrc = isDark ? darkLogo : lightLogo;
+
+  useEffect(()=>{
+    const mq = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
+    const handler = (e: MediaQueryListEvent)=> {
+      // Only update from media query if the app isn't forcing a theme with the 'dark' class
+      const forced = document.documentElement.classList.contains('dark') || document.documentElement.classList.contains('light');
+      if (!forced) setIsDark(e.matches);
+    };
+    mq?.addEventListener?.('change', handler);
+
+    // Observe Tailwind 'dark' class changes to reflect actual app theme
+    const observer = new MutationObserver(() => {
+      const hasDark = document.documentElement.classList.contains('dark');
+      setIsDark(hasDark);
+    });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['class'] });
+
+    return ()=> {
+      mq?.removeEventListener?.('change', handler as any);
+      observer.disconnect();
+    };
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -102,7 +131,7 @@ const Layout = ({ children }: LayoutProps) => {
             <Link to="/" className="flex items-center gap-2 px-6 mb-8 group">
               <div className="relative">
                 <div className="absolute -inset-1 bg-gradient-to-r from-blue-600 to-pink-600 rounded-lg blur opacity-0 group-hover:opacity-75 transition duration-500"></div>
-                <img src={logo} alt="Shikfy" className="relative w-8 h-8 object-contain" />
+                <img src={logoSrc} alt="Shikfy" className="relative w-12 h-12 object-contain" />
               </div>
               <span className="text-2xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                 Shikfy
@@ -202,18 +231,27 @@ const Layout = ({ children }: LayoutProps) => {
             <Link to="/" className="flex items-center gap-2 group flex-1">
               <div className="relative">
                 <div className="absolute -inset-0.5 bg-gradient-to-r from-blue-600 to-pink-600 rounded-lg blur opacity-0 group-hover:opacity-75 transition duration-500"></div>
-                <img src={logo} alt="Shikfy" className="relative w-7 h-7 object-contain" />
+                <img src={logoSrc} alt="Shikfy" className="relative w-11 h-11 object-contain" />
               </div>
-              <span className="text-lg font-black bg-gradient-to-r from-blue-600 to-pink-600 bg-clip-text text-transparent">
-                Shikfy
-              </span>
+              <span className="text-lg font-black bg-gradient-to-r from-blue-600 to-pink-600 bg-clip-text text-transparent">Shikfy</span>
             </Link>
             <div className="flex items-center gap-2">
               <Link
                 to={user?.id ? `/profile/${user.id}` : '/profile'}
-                className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700 transition"
+                className="p-1 rounded-full hover:bg-gray-100 dark:hover:bg-slate-700 transition"
+                aria-label="Profile"
               >
-                <User className="w-5 h-5 text-gray-700 dark:text-gray-300" />
+                {user?.profilePic ? (
+                  <img
+                    src={user.profilePic}
+                    alt={user.displayName || 'Profile'}
+                    className="w-9 h-9 rounded-full object-cover border-2 border-white dark:border-slate-700 shadow"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500 flex items-center justify-center text-white font-bold">
+                    {(user?.displayName || 'U')[0].toUpperCase()}
+                  </div>
+                )}
               </Link>
               <button
                 onClick={() => setShowMobileMenu(!showMobileMenu)}

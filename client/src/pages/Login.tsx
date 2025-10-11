@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Camera, Mail, Lock, ArrowRight, Sparkles, Eye, EyeOff } from 'lucide-react';
+import { Mail, Lock, ArrowRight, Sparkles, Eye, EyeOff } from 'lucide-react';
+import darkLogo from '../darklogo.png';
 import { useAuth } from '../contexts/AuthContext';
 
 const Login = () => {
@@ -49,7 +50,7 @@ const Login = () => {
                 <div className="relative">
                   <div className="absolute inset-0 bg-white/20 rounded-2xl blur-xl"></div>
                   <div className="relative w-14 h-14 sm:w-16 sm:h-16 bg-white/10 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/20 shadow-lg">
-                    <Camera className="w-8 h-8 sm:w-10 sm:h-10 text-white" />
+                    <img src={darkLogo} alt="Shikfy" className="w-10 h-10 sm:w-12 sm:h-12 object-contain" />
                   </div>
                 </div>
                 <span className="text-4xl sm:text-5xl font-black text-white drop-shadow-lg">
