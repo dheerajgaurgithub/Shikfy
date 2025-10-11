@@ -1,0 +1,106 @@
+{
+  "info": {
+    "name": "Shikfy API",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Postman collection for Shikfy server endpoints"
+  },
+  "item": [
+    {
+      "name": "Auth - Login",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/auth/login", "host": ["{{baseUrl}}"], "path": ["auth", "login"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password\"\n}"
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Users - Get Profile",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/users/:id", "host": ["{{baseUrl}}"], "path": ["users", ":id"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Users - Posts",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/users/:id/posts", "host": ["{{baseUrl}}"], "path": ["users", ":id", "posts"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Users - Reels",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/users/:id/reels", "host": ["{{baseUrl}}"], "path": ["users", ":id", "reels"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Follow - Status",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/users/:id/following-status", "host": ["{{baseUrl}}"], "path": ["users", ":id", "following-status"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Follow - Follow User",
+      "request": {
+        "method": "POST",
+        "url": { "raw": "{{baseUrl}}/users/:id/follow", "host": ["{{baseUrl}}"], "path": ["users", ":id", "follow"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Follow - Unfollow User",
+      "request": {
+        "method": "DELETE",
+        "url": { "raw": "{{baseUrl}}/users/:id/follow", "host": ["{{baseUrl}}"], "path": ["users", ":id", "follow"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Bookmarks - List",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/bookmarks", "host": ["{{baseUrl}}"], "path": ["bookmarks"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Stories - By User",
+      "request": {
+        "method": "GET",
+        "url": { "raw": "{{baseUrl}}/stories/user/:id", "host": ["{{baseUrl}}"], "path": ["stories", "user", ":id"] }
+      },
+      "response": []
+    },
+    {
+      "name": "Close Friends - Update",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": { "raw": "{{baseUrl}}/users/:id/close-friends", "host": ["{{baseUrl}}"], "path": ["users", ":id", "close-friends"] },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"userIds\": [\"<friendId1>\", \"<friendId2>\"]\n}"
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" }
+  ]
+}
