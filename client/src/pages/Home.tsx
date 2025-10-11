@@ -1,11 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 import PostCard from '../components/PostCard';
+import ReelFeedCard from '../components/ReelFeedCard';
 import CreateStoryModal from '../components/CreateStoryModal';
 import StoryViewerModal from '../components/StoryViewerModal';
-import { Heart, MessageCircle, Bookmark } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, MoreHorizontal } from 'lucide-react';
+import FollowButton from '../components/FollowButton';
 
 interface Post {
   _id: string;
@@ -34,6 +36,18 @@ const Home = () => {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [reels, setReels] = useState<any[]>([]);
+  const mixedFeed = useMemo(()=>{
+    const p = posts.map((x:any)=> ({ __kind:'post', _id:x._id, data:x }));
+    const r = reels.map((x:any)=> ({ __kind:'reel', _id:x._id, data:x }));
+    const all = [...p, ...r];
+    // simple interleave by createdAt if available; otherwise shuffle
+    all.sort((a:any,b:any)=>{
+      const ad = new Date(a.data?.createdAt||0).getTime();
+      const bd = new Date(b.data?.createdAt||0).getTime();
+      return bd - ad;
+    });
+    return all;
+  }, [posts, reels]);
   
   // User connections
   const [following, setFollowing] = useState<any[]>([]);
@@ -62,8 +76,8 @@ const Home = () => {
   const fetchPosts = async () => {
     try {
       const [postsResponse, reelsResponse] = await Promise.all([
-        apiClient.get(`/posts/feed?page=${page}`),
-        page === 1 ? apiClient.get('/reels/feed?page=1') : Promise.resolve({ data: [] })
+        apiClient.get(`/posts/feed?page=${page}&random=${page===1}`),
+        page === 1 ? apiClient.get('/reels/feed?page=1&random=true') : Promise.resolve({ data: [] })
       ]);
       
       if (page === 1) {
@@ -295,6 +309,25 @@ const Home = () => {
     setPostDialog({ open: false, post: null, comments: [] });
   };
 
+  // Keyboard navigation inside dialog
+  useEffect(()=>{
+    if (!postDialog.open) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') { closePostDialog(); }
+      if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
+        const ids = mixedFeed.filter(i=> i.__kind==='post').map(i=> i._id);
+        const idx = ids.findIndex(id=> id === postDialog.post?._id);
+        if (idx !== -1) {
+          const nextIdx = e.key === 'ArrowRight' ? idx + 1 : idx - 1;
+          const nextId = ids[nextIdx];
+          if (nextId) openPostDialog(nextId);
+        }
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return ()=> window.removeEventListener('keydown', handler);
+  }, [postDialog.open, postDialog.post?._id, mixedFeed]);
+
   // Effects
   useEffect(() => {
     fetchPosts();
@@ -430,35 +463,7 @@ const Home = () => {
                 </div>
               </div>
 
-              {/* Reels Section */}
-              {reels.length > 0 && (
-                <div className="mb-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-3xl shadow-lg p-3 sm:p-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-1 h-5 bg-gradient-to-b from-green-500 via-blue-500 to-purple-500 rounded-full"></div>
-                    <h2 className="text-sm sm:text-base font-bold text-gray-800 dark:text-white">Reels</h2>
-                  </div>
-                  <div className="overflow-x-auto scrollbar-hide -mx-2 px-2">
-                    <div className="flex gap-2 sm:gap-3 min-w-max">
-                      {reels.map((reel: any) => (
-                        <div key={reel._id} className="relative w-28 sm:w-36 aspect-[9/16] rounded-xl overflow-hidden bg-black">
-                          <a href={`/reel/${reel._id}`} className="absolute inset-0">
-                            <img 
-                              src={reel.video?.thumbnail || 'https://via.placeholder.com/240x426?text=Reel'} 
-                              className="w-full h-full object-cover" 
-                              alt="Reel thumbnail"
-                            />
-                          </a>
-                          <div className="absolute bottom-1 left-1 text-[10px] sm:text-xs text-white bg-black/40 px-1.5 py-0.5 rounded">
-                            {reel.likesCount || 0} ❤
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Feed Posts */}
+              {/* Mixed feed: posts + reels */}
               {posts.length === 0 ? (
                 <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl border border-gray-200/50 dark:border-gray-700/50 rounded-3xl shadow-lg p-12 sm:p-16 text-center">
                   <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-blue-100 to-purple-100 dark:from-blue-900/30 dark:to-purple-900/30 rounded-full flex items-center justify-center">
@@ -471,13 +476,21 @@ const Home = () => {
                 </div>
               ) : (
                 <div className="space-y-4 sm:space-y-6">
-                  {posts.map((post) => (
-                    <PostCard 
-                      key={post._id} 
-                      post={post} 
-                      onDelete={(id) => setPosts(prev => prev.filter(p => p._id !== id))} 
-                      onOpenDialog={(postId) => openPostDialog(postId)} 
-                    />
+                  {mixedFeed.map((item:any)=> (
+                    item.__kind==='post' ? (
+                      <div key={`post-${item._id}`}>
+                        {/* Header actions: follow near username handled by PostCard header if needed; keep dialog for details */}
+                        <PostCard 
+                          post={item.data} 
+                          onDelete={(id) => setPosts(prev => prev.filter(p => p._id !== id))} 
+                          onOpenDialog={(postId) => openPostDialog(postId)} 
+                        />
+                      </div>
+                    ) : (
+                      <div key={`reel-${item._id}`}>
+                        <ReelFeedCard reel={item.data} />
+                      </div>
+                    )
                   ))}
                   {posts.length >= 20 && (
                     <button 
@@ -628,7 +641,21 @@ const Home = () => {
                 <div className="font-semibold text-gray-900 dark:text-white">
                   {postDialog.post.authorId?.username}
                 </div>
+                {/* Follow button near username */}
+                {postDialog.post.authorId?._id && (
+                  <FollowButton targetId={postDialog.post.authorId._id} compact />
+                )}
                 <div className="ml-auto flex items-center gap-3 text-gray-600 dark:text-gray-300">
+                  {/* More menu with Add to favourites */}
+                  <div className="relative">
+                    <button aria-label="More" className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                      <MoreHorizontal className="w-5 h-5" />
+                    </button>
+                    {/* simple menu */}
+                    <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg hidden group-hover:block">
+                      <button onClick={toggleBookmark} className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">Add to favourites</button>
+                    </div>
+                  </div>
                   <button 
                     className="flex items-center gap-1" 
                     onClick={toggleLikePost}

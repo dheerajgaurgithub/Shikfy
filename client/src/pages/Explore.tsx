@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Search } from 'lucide-react';
 import apiClient from '../api/client';
 import { Link } from 'react-router-dom';
+import FollowButton from '../components/FollowButton';
 
 const Explore = () => {
   const [posts, setPosts] = useState<any[]>([]);
@@ -12,6 +13,8 @@ const Explore = () => {
       _id: p._id,
       thumb: p?.media?.[0]?.thumbnail || p?.media?.[0]?.url,
       isVideo: (p?.media?.[0]?.type === 'video'),
+      videoUrl: p?.media?.[0]?.type === 'video' ? p?.media?.[0]?.url : undefined,
+      authorId: p?.authorId?._id || p?.authorId,
       likesCount: p.likesCount||0,
       commentsCount: p.commentsCount||0,
     }));
@@ -20,6 +23,8 @@ const Explore = () => {
       _id: r._id,
       thumb: r?.video?.thumbnail,
       isVideo: true,
+      videoUrl: r?.video?.url,
+      authorId: r?.authorId?._id || r?.authorId,
       likesCount: r.likesCount||0,
       commentsCount: r.commentsCount||0,
     }));
@@ -143,7 +148,20 @@ const Explore = () => {
                 className={`relative group ${it.__kind==='reel' || it.isVideo? 'aspect-[9/16]':'aspect-square'} bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden cursor-pointer shadow-md hover:shadow-xl transition-all duration-500 ring-2 ring-gray-300 dark:ring-slate-700 ring-opacity-0 hover:ring-opacity-100 group-hover:scale-105 transform`}
                 style={{ animationDelay: `${index*40}ms` }}
               >
+                {/* Thumb */}
                 <img src={it.thumb || 'https://via.placeholder.com/400x400'} alt="Explore item" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
+                {/* Hover autoplay for videos */}
+                {it.isVideo && it.videoUrl && (
+                  <video
+                    src={it.videoUrl}
+                    className="absolute inset-0 w-full h-full object-cover opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                    muted
+                    loop
+                    playsInline
+                    onMouseEnter={(e)=>{ const v=e.currentTarget; try{v.play();}catch{}}}
+                    onMouseLeave={(e)=>{ const v=e.currentTarget; try{v.pause(); v.currentTime=0;}catch{}}}
+                  />
+                )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
                 {it.isVideo && (
                   <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">Video</div>
@@ -152,6 +170,12 @@ const Explore = () => {
                   <span>❤ {it.likesCount||0}</span>
                   <span>💬 {it.commentsCount||0}</span>
                 </div>
+                {/* Follow overlay */}
+                {it.authorId && (
+                  <div className="absolute top-2 left-2">
+                    <FollowButton targetId={String(it.authorId)} compact />
+                  </div>
+                )}
               </Link>
             ))}
           </div>
