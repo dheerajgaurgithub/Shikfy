@@ -1,8 +1,9 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import apiClient from '../api/client';
 import { useAuth } from '../contexts/AuthContext';
-import { Heart, MessageCircle, Send, Bookmark } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, MoreHorizontal, Flag } from 'lucide-react';
+import FollowButton from '../components/FollowButton';
 
 interface CommentType {
   _id: string;
@@ -49,6 +50,9 @@ const ReelDetail = () => {
   const [shareSearch, setShareSearch] = useState('');
   const [sharing, setSharing] = useState(false);
   const commentInputRef = useRef<HTMLInputElement | null>(null);
+  const [showMenu, setShowMenu] = useState(false);
+  const [showReport, setShowReport] = useState(false);
+  const [reportReason, setReportReason] = useState('');
 
   const fetchAll = async () => {
     if (!id) return;
@@ -206,7 +210,6 @@ const ReelDetail = () => {
       console.error('Failed to toggle comment like', e);
     }
   };
-
   useEffect(() => {
     fetchAll();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -275,13 +278,35 @@ const ReelDetail = () => {
             <Link to={`/profile/${reel.authorId._id}`} className="font-semibold text-gray-900 dark:text-white">
               {reel.authorId.username}
             </Link>
-            <span className="text-gray-600 dark:text-gray-400 truncate">{reel.caption}</span>
-            {user?.id === reel.authorId._id && (
-              <div className="ml-auto flex gap-2">
-                <button onClick={()=>{setShowEdit(true); setEditVisibility((reel as any).visibility || 'public'); setEditStatus(((reel as any).status)||'published'); setEditScheduledAt(((reel as any).scheduledAt)? new Date((reel as any).scheduledAt).toISOString().slice(0,16):'');}} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-800 dark:text-gray-200">Edit</button>
-                <button onClick={loadSavers} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-800 dark:text-gray-200">Savers</button>
-              </div>
+            {String(user?.id) !== String(reel.authorId._id) && (
+              <FollowButton targetId={reel.authorId._id} compact />
             )}
+            <span className="text-gray-600 dark:text-gray-400 truncate">{reel.caption}</span>
+            <div className="ml-auto flex items-center gap-2">
+              {user?.id === reel.authorId._id && (
+                <>
+                  <button onClick={()=>{setShowEdit(true); setEditVisibility((reel as any).visibility || 'public'); setEditStatus(((reel as any).status)||'published'); setEditScheduledAt(((reel as any).scheduledAt)? new Date((reel as any).scheduledAt).toISOString().slice(0,16):'');}} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-800 dark:text-gray-200">Edit</button>
+                  <button onClick={loadSavers} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-800 dark:text-gray-200">Savers</button>
+                </>
+              )}
+              <div className="relative">
+                <button onClick={()=> setShowMenu(v=>!v)} className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800" aria-label="More">
+                  <MoreHorizontal className="w-5 h-5" />
+                </button>
+                {showMenu && (
+                  <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
+                    <button onClick={()=>{ handleBookmark(); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
+                      <Bookmark className="w-4 h-4" />
+                      <span>{bookmarked? 'Remove from favourites' : 'Add to favourites'}</span>
+                    </button>
+                    <button onClick={()=>{ setShowReport(true); setShowMenu(false); }} className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2">
+                      <Flag className="w-4 h-4" />
+                      <span>Report</span>
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
           {/* Comments scroll area */}
           <div className="flex-1 overflow-y-auto p-4 space-y-4">

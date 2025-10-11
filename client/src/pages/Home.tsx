@@ -71,6 +71,8 @@ const Home = () => {
   const [postBookmarked, setPostBookmarked] = useState<boolean>(false);
   const [postComment, setPostComment] = useState<string>('');
   const dialogCommentRef = useRef<HTMLInputElement | null>(null);
+  const [showMoreMenu, setShowMoreMenu] = useState<boolean>(false);
+  const moreMenuRef = useRef<HTMLDivElement | null>(null);
 
   // Fetch posts and reels
   const fetchPosts = async () => {
@@ -102,6 +104,7 @@ const Home = () => {
       ]);
       
       const post = postResponse.data;
+      setShowMoreMenu(false);
       setPostDialog({ open: true, post, comments: commentsResponse.data || [] });
       setPostLikes(post?.likesCount || 0);
       
@@ -306,6 +309,7 @@ const Home = () => {
 
   // Close post dialog
   const closePostDialog = () => {
+    setShowMoreMenu(false);
     setPostDialog({ open: false, post: null, comments: [] });
   };
 
@@ -323,10 +327,35 @@ const Home = () => {
           if (nextId) openPostDialog(nextId);
         }
       }
+      if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+        // Navigate whole mixed feed (including reels). For posts, open dialog; for reels, navigate to detail.
+        const ids = mixedFeed.map(i=> ({ id:i._id, kind:i.__kind }));
+        const currentId = postDialog.post?._id;
+        let idx = ids.findIndex(x=> x.id === currentId);
+        if (idx === -1) idx = 0;
+        const nextIdx = e.key === 'ArrowDown' ? idx + 1 : idx - 1;
+        const next = ids[nextIdx];
+        if (next) {
+          if (next.kind==='post') openPostDialog(next.id); else window.location.href = `/reel/${next.id}`;
+        }
+      }
     };
     window.addEventListener('keydown', handler);
     return ()=> window.removeEventListener('keydown', handler);
   }, [postDialog.open, postDialog.post?._id, mixedFeed]);
+
+  // Click-away for post dialog 3-dots menu
+  useEffect(()=>{
+    if (!showMoreMenu) return;
+    const onDocClick = (e: MouseEvent) => {
+      if (!moreMenuRef.current) return;
+      if (!moreMenuRef.current.contains(e.target as Node)) {
+        setShowMoreMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', onDocClick);
+    return ()=> document.removeEventListener('mousedown', onDocClick);
+  }, [showMoreMenu]);
 
   // Effects
   useEffect(() => {
@@ -641,20 +670,21 @@ const Home = () => {
                 <div className="font-semibold text-gray-900 dark:text-white">
                   {postDialog.post.authorId?.username}
                 </div>
-                {/* Follow button near username */}
-                {postDialog.post.authorId?._id && (
+                {/* Follow button near username (hide for own posts) */}
+                {postDialog.post.authorId?._id && String(postDialog.post.authorId._id) !== String(user?.id) && (
                   <FollowButton targetId={postDialog.post.authorId._id} compact />
                 )}
                 <div className="ml-auto flex items-center gap-3 text-gray-600 dark:text-gray-300">
                   {/* More menu with Add to favourites */}
-                  <div className="relative">
-                    <button aria-label="More" className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800">
+                  <div className="relative" ref={moreMenuRef}>
+                    <button aria-label="More" className="p-1 rounded hover:bg-gray-100 dark:hover:bg-gray-800" onClick={()=> setShowMoreMenu((prev:boolean)=> !prev)}>
                       <MoreHorizontal className="w-5 h-5" />
                     </button>
-                    {/* simple menu */}
-                    <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg hidden group-hover:block">
-                      <button onClick={toggleBookmark} className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">Add to favourites</button>
-                    </div>
+                    {showMoreMenu && (
+                      <div className="absolute right-0 mt-2 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg">
+                        <button onClick={toggleBookmark} className="block w-full text-left px-4 py-2 text-sm hover:bg-gray-100 dark:hover:bg-gray-700">{postBookmarked? 'Remove from favourites':'Add to favourites'}</button>
+                      </div>
+                    )}
                   </div>
                   <button 
                     className="flex items-center gap-1" 

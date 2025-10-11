@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Settings, Grid, Bookmark as BookmarkIcon, Film, AtSign } from 'lucide-react';
 import EditProfileModal from '../components/EditProfileModal';
@@ -38,6 +38,8 @@ const Profile = () => {
   const [activeTab, setActiveTab] = useState<'posts'|'reels'|'mentions'|'saved'>('posts');
   const [showEdit, setShowEdit] = useState(false);
   const [hasActiveStory, setHasActiveStory] = useState(false);
+  const [showCover, setShowCover] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const isOwnProfile = currentUser?.id === id;
 
@@ -134,10 +136,13 @@ const Profile = () => {
       {/* Banner / Cover */}
       <div className="rounded-2xl overflow-hidden border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow">
         <div className="relative">
-          <div className="w-full h-40 md:h-56 bg-gradient-to-r from-gray-200 to-gray-100 dark:from-gray-700 dark:to-gray-800">
-            {user as any && (user as any).bannerUrl ? (
+          <div className="w-full h-40 md:h-56 bg-gradient-to-r from-gray-200 to-gray-100 dark:from-gray-700 dark:to-gray-800 relative group cursor-pointer" onClick={()=>{ if ((user as any)?.bannerUrl) setShowCover(true); }}>
+            {(user as any)?.bannerUrl ? (
               <img src={(user as any).bannerUrl} alt="cover" className="w-full h-full object-cover" />
             ) : null}
+            {isOwnProfile && (
+              <button onClick={(e)=>{ e.stopPropagation(); fileInputRef.current?.click(); }} className="absolute bottom-2 right-2 px-3 py-1.5 text-xs rounded-full bg-black/60 text-white opacity-0 group-hover:opacity-100 transition">Change cover</button>
+            )}
           </div>
           <div className={`absolute -bottom-10 left-6 w-24 h-24 rounded-full ${hasActiveStory ? 'p-[2px] bg-gradient-to-tr from-pink-500 to-yellow-400' : ''} border-4 border-white dark:border-gray-800`}>
             <div className={`w-full h-full rounded-full ${hasActiveStory ? 'bg-white dark:bg-gray-800 p-[2px]' : 'bg-transparent'} overflow-hidden`}> 
@@ -196,27 +201,18 @@ const Profile = () => {
               </div>
             </div>
 
-            <div className="flex justify-center md:justify-start space-x-8 mb-4">
-              <div className="text-center">
-                <div className="text-xl font-bold text-gray-900 dark:text-white">
-                  {user.postsCount}
-                </div>
-                <div className="text-sm text-gray-500 dark:text-gray-400">Posts</div>
-              </div>
+            <div className="flex flex-wrap items-center gap-6 mb-4">
+              <div className="flex items-baseline gap-2 text-gray-900 dark:text-white text-xl font-bold"><span>{user.postsCount}</span><span className="text-sm font-medium text-gray-500 dark:text-gray-400">Posts</span></div>
               {(user.privacySettings?.showFollowersList !== false) && (
-                <button onClick={()=> navigate(`/profile/${id}/followers`)} className="text-center">
-                  <div className="text-xl font-bold text-gray-900 dark:text-white">
-                    {user.followersCount}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 underline">Followers</div>
+                <button onClick={()=> navigate(`/profile/${id}/followers`)} className="flex items-baseline gap-2 text-xl font-bold text-gray-900 dark:text-white">
+                  <span>{user.followersCount}</span>
+                  <span className="text-sm font-medium underline text-gray-500 dark:text-gray-400">Followers</span>
                 </button>
               )}
               {(user.privacySettings?.showFollowingList !== false) && (
-                <button onClick={()=> navigate(`/profile/${id}/following`)} className="text-center">
-                  <div className="text-xl font-bold text-gray-900 dark:text-white">
-                    {user.followingCount}
-                  </div>
-                  <div className="text-sm text-gray-500 dark:text-gray-400 underline">Following</div>
+                <button onClick={()=> navigate(`/profile/${id}/following`)} className="flex items-baseline gap-2 text-xl font-bold text-gray-900 dark:text-white">
+                  <span>{user.followingCount}</span>
+                  <span className="text-sm font-medium underline text-gray-500 dark:text-gray-400">Following</span>
                 </button>
               )}
             </div>
@@ -244,7 +240,7 @@ const Profile = () => {
           </button>
           {isOwnProfile && (
             <button onClick={()=>setActiveTab('saved')} className={`flex items-center space-x-2 font-semibold pt-4 -mt-[1px] ${activeTab==='saved'?'text-gray-900 dark:text-white border-t-2 border-gray-900 dark:border-white':'text-gray-500 dark:text-gray-400'}`}>
-              <BookmarkIcon className="w-5 h-5" /> <span>SAVED</span>
+              <BookmarkIcon className="w-5 h-5" /> <span>FAVOURITES</span>
             </button>
           )}
         </div>
@@ -287,6 +283,33 @@ const Profile = () => {
         )
       )}
 
+      {/* Hidden file input for cover upload */}
+      {isOwnProfile && (
+        <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={async (e)=>{
+          const f = e.target.files?.[0];
+          if (!f || !id) return;
+          const fd = new FormData();
+          fd.append('banner', f);
+          try {
+            const res = await apiClient.post(`/users/${id}/banner`, fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+            const url = res.data?.bannerUrl || res.data?.url;
+            if (url) setUser(prev=> prev ? { ...prev, bannerUrl: url } as any : prev);
+          } catch (err) {
+            console.error('Failed to upload cover', err);
+            alert('Failed to upload cover');
+          } finally {
+            if (fileInputRef.current) fileInputRef.current.value = '';
+          }
+        }} />
+      )}
+
+      {/* Cover preview modal */}
+      {showCover && (user as any)?.bannerUrl && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4" onClick={()=> setShowCover(false)}>
+          <img src={(user as any).bannerUrl} alt="cover" className="w-full max-w-6xl h-auto object-contain" />
+        </div>
+      )}
+
       {activeTab==='mentions' && (
         (mentionsPosts.length + mentionsReels.length === 0) ? (
           <div className="text-center py-16 text-gray-500 dark:text-gray-400">No mentions yet</div>
@@ -322,12 +345,12 @@ const Profile = () => {
 
       {activeTab==='saved' && isOwnProfile && (
         (savedPosts.length + savedReels.length === 0) ? (
-          <div className="text-center py-16 text-gray-500 dark:text-gray-400">No saved items yet</div>
+          <div className="text-center py-16 text-gray-500 dark:text-gray-400">No favourites yet</div>
         ) : (
           <div className="space-y-8">
             {savedPosts.length>0 && (
               <div>
-                <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">Posts</h3>
+                <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">Favourites · Posts</h3>
                 <div className="grid grid-cols-3 gap-1">
                   {savedPosts.map((p:any)=> (
                     <div key={p._id} className="aspect-square bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
@@ -339,7 +362,7 @@ const Profile = () => {
             )}
             {savedReels.length>0 && (
               <div>
-                <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">Reels</h3>
+                <h3 className="mb-2 font-semibold text-gray-900 dark:text-white">Favourites · Reels</h3>
                 <div className="grid grid-cols-3 gap-1">
                   {savedReels.map((r:any)=> (
                     <div key={r._id} className="aspect-[9/16] bg-black rounded-lg overflow-hidden">

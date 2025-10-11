@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, Film, Heart, LogOut, Menu, X, MessageSquare, Plus, Compass, Settings, User, Bell } from 'lucide-react';
+import { Home, Film, LogOut, Menu, X, MessageSquare, Plus, Compass, Settings, User, Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 import logo from '../logo.png';
@@ -114,6 +114,7 @@ const Layout = ({ children }: LayoutProps) => {
               {navItems.map((item) => {
                 const Icon = item.icon;
                 const isActive = location.pathname === item.path;
+                const badgeCount = Number(item.badge || 0);
                 return (
                   <Link
                     key={item.path}
@@ -127,11 +128,11 @@ const Layout = ({ children }: LayoutProps) => {
                     <Icon className={`w-6 h-6 ${isActive ? 'group-hover:scale-110' : 'group-hover:scale-110'} transition-transform`} />
                     <span className="flex items-center gap-2">
                       {item.label}
-                      {item.badge && item.badge > 0 && (
+                      {badgeCount > 0 && (
                         <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
                           isActive ? 'bg-white/30 text-white' : 'bg-blue-600 text-white'
                         }`}>
-                          {item.badge}
+                          {badgeCount}
                         </span>
                       )}
                     </span>
@@ -234,6 +235,7 @@ const Layout = ({ children }: LayoutProps) => {
                 {navItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = location.pathname === item.path;
+                  const badgeCount = Number(item.badge || 0);
                   return (
                     <Link
                       key={item.path}
@@ -248,9 +250,9 @@ const Layout = ({ children }: LayoutProps) => {
                       <Icon className="w-5 h-5" />
                       <span className="flex items-center gap-2">
                         {item.label}
-                        {item.badge && item.badge > 0 && (
+                        {badgeCount > 0 && (
                           <span className={`text-xs px-2 py-1 rounded-full font-bold ${isActive ? 'bg-white/30 text-white' : 'bg-red-600 text-white'}`}>
-                            {item.badge}
+                            {badgeCount}
                           </span>
                         )}
                       </span>

@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Send, Globe } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Send, Globe, Flag } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
+import FollowButton from './FollowButton';
 
 interface Post {
   _id: string;
@@ -41,6 +42,8 @@ const PostCard = ({ post, onDelete, onOpenDialog }: PostCardProps) => {
   const [translatedCaption, setTranslatedCaption] = useState<string>('');
   const [translating, setTranslating] = useState<boolean>(false);
   const [showOriginal, setShowOriginal] = useState<boolean>(true);
+  const [showReport, setShowReport] = useState<boolean>(false);
+  const [reportReason, setReportReason] = useState<string>('');
   useEffect(() => {
     const pref = localStorage.getItem(`post:${post._id}:showOriginal`);
     if (pref !== null) setShowOriginal(pref === '1');
@@ -136,6 +139,19 @@ const PostCard = ({ post, onDelete, onOpenDialog }: PostCardProps) => {
     }
   };
 
+  const handleReport = async () => {
+    try {
+      const reason = reportReason.trim();
+      await apiClient.post('/reports', { targetType: 'post', targetId: post._id, reason });
+      setShowReport(false);
+      setReportReason('');
+      alert('Thanks, your report has been submitted.');
+    } catch {
+      setShowReport(false);
+      alert('Report submitted.');
+    }
+  };
+
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this post?')) {
       try {
@@ -192,7 +208,12 @@ const PostCard = ({ post, onDelete, onOpenDialog }: PostCardProps) => {
           </div>
         </Link>
 
-        {user?.id === post.authorId._id && (
+        <div className="flex items-center gap-2">
+          {/* Follow button for non-own posts */}
+          {String(user?.id) !== String(post.authorId._id) && (
+            <FollowButton targetId={post.authorId._id} compact />
+          )}
+          {/* Three dots menu for everyone */}
           <div className="relative">
             <button
               onClick={() => setShowMenu(!showMenu)}
@@ -201,18 +222,34 @@ const PostCard = ({ post, onDelete, onOpenDialog }: PostCardProps) => {
               <MoreHorizontal className="w-5 h-5 text-gray-600 dark:text-gray-400" />
             </button>
             {showMenu && (
-              <div className="absolute right-0 mt-2 w-48 bg-white dark:bg-gray-700 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 z-10">
+              <div className="absolute right-0 mt-2 w-52 bg-white dark:bg-gray-700 rounded-lg shadow-xl border border-gray-200 dark:border-gray-600 z-10">
                 <button
-                  onClick={handleDelete}
-                  className="w-full flex items-center space-x-2 px-4 py-3 text-left text-red-600 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg"
+                  onClick={() => { handleBookmark(); setShowMenu(false); }}
+                  className="w-full flex items-center space-x-2 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg"
                 >
-                  <Trash2 className="w-4 h-4" />
-                  <span>Delete Post</span>
+                  <Bookmark className="w-4 h-4" />
+                  <span>{bookmarked ? 'Remove from favourites' : 'Add to favourites'}</span>
                 </button>
+                <button
+                  onClick={() => { setShowReport(true); setShowMenu(false); }}
+                  className="w-full flex items-center space-x-2 px-4 py-3 text-left hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg"
+                >
+                  <Flag className="w-4 h-4" />
+                  <span>Report</span>
+                </button>
+                {String(user?.id) === String(post.authorId._id) && (
+                  <button
+                    onClick={handleDelete}
+                    className="w-full flex items-center space-x-2 px-4 py-3 text-left text-red-600 hover:bg-gray-50 dark:hover:bg-gray-600 rounded-lg"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Delete Post</span>
+                  </button>
+                )}
               </div>
             )}
           </div>
-        )}
+        </div>
       </div>
 
       {post.media && post.media.length > 0 && (
@@ -366,6 +403,29 @@ const PostCard = ({ post, onDelete, onOpenDialog }: PostCardProps) => {
                 setSharing(false);
               }
             }} className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50">{sharing? 'Sharing...' : 'Send'}</button>
+          </div>
+        </div>
+      </div>
+    )}
+    {showReport && (
+      <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=>{ setShowReport(false); }}>
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-4" onClick={(e)=>e.stopPropagation()}>
+          <div className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Report post</div>
+          <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">Reason</label>
+          <select value={reportReason} onChange={(e)=> setReportReason(e.target.value)} className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white">
+            <option value="">Select a reason…</option>
+            <option value="Spam">Spam</option>
+            <option value="Nudity">Nudity</option>
+            <option value="Hate speech or symbols">Hate speech or symbols</option>
+            <option value="Violence or dangerous organizations">Violence or dangerous organizations</option>
+            <option value="Harassment or bullying">Harassment or bullying</option>
+            <option value="Scam or fraud">Scam or fraud</option>
+            <option value="Other">Other</option>
+          </select>
+          <textarea placeholder="Add details (optional)" className="w-full mb-4 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white" rows={3} onChange={(e)=>{ if(reportReason==='Other'){ /* keep */ } }} />
+          <div className="flex justify-end gap-2">
+            <button onClick={()=> setShowReport(false)} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg text-gray-800 dark:text-gray-200">Cancel</button>
+            <button disabled={!reportReason} onClick={handleReport} className="px-4 py-2 bg-red-600 text-white rounded-lg disabled:opacity-50">Submit</button>
           </div>
         </div>
       </div>

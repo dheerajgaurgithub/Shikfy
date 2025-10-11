@@ -3,10 +3,12 @@ import { Search } from 'lucide-react';
 import apiClient from '../api/client';
 import { Link } from 'react-router-dom';
 import FollowButton from '../components/FollowButton';
+import { useAuth } from '../contexts/AuthContext';
 
 const Explore = () => {
   const [posts, setPosts] = useState<any[]>([]);
   const [reels, setReels] = useState<any[]>([]);
+  const { user } = useAuth();
   const mixed = React.useMemo(()=>{
     const a = (posts||[]).map((p:any)=> ({
       __kind: 'post',
@@ -171,7 +173,7 @@ const Explore = () => {
                   <span>💬 {it.commentsCount||0}</span>
                 </div>
                 {/* Follow overlay */}
-                {it.authorId && (
+                {it.authorId && String(it.authorId) !== String(user?.id) && (
                   <div className="absolute top-2 left-2">
                     <FollowButton targetId={String(it.authorId)} compact />
                   </div>
