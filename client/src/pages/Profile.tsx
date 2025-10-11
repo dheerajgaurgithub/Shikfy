@@ -53,7 +53,8 @@ const Profile = () => {
 
         const postsRes = await apiClient.get(`/users/${id}/posts`);
         const p = (postsRes as any)?.data;
-        setPosts(Array.isArray(p) ? p : []);
+        const postsList = Array.isArray(p) ? p : Array.isArray(p?.posts) ? p.posts : [];
+        setPosts(postsList);
 
         if (!isOwnProfile) {
           const statusRes = await apiClient.get(`/users/${id}/following-status`);
@@ -82,7 +83,8 @@ const Profile = () => {
         if (activeTab === 'reels') {
           const r = await apiClient.get(`/users/${id}/reels`);
           const list = (r as any)?.data;
-          setReels(Array.isArray(list) ? list : []);
+          const reelsList = Array.isArray(list) ? list : Array.isArray(list?.reels) ? list.reels : [];
+          setReels(reelsList);
         } else if (activeTab === 'mentions') {
           const m = await apiClient.get(`/users/${id}/mentions`);
           const md = (m as any)?.data || {};

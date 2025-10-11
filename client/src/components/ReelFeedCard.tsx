@@ -7,9 +7,10 @@ import apiClient from '../api/client';
 
 interface ReelFeedCardProps {
   reel: any;
+  onDelete?: (reelId: string) => void;
 }
 
-const ReelFeedCard: React.FC<ReelFeedCardProps> = ({ reel }) => {
+const ReelFeedCard: React.FC<ReelFeedCardProps> = ({ reel, onDelete }) => {
   const { user } = useAuth() as any;
   const author = reel.authorId || {};
   const [showMenu, setShowMenu] = React.useState(false);
@@ -92,6 +93,19 @@ const ReelFeedCard: React.FC<ReelFeedCardProps> = ({ reel }) => {
                   <Flag className="w-4 h-4" />
                   <span>Report</span>
                 </button>
+                {String(author?._id) === String(user?.id) && (
+                  <button
+                    onClick={async ()=>{
+                      if (!window.confirm('Delete this reel?')) return;
+                      try { await apiClient.delete(`/reels/${reel._id}`); onDelete?.(reel._id); } catch (e) { alert('Failed to delete reel'); }
+                      finally { setShowMenu(false); }
+                    }}
+                    className="w-full text-left px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 flex items-center gap-2 text-red-600"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path><path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2"></path></svg>
+                    <span>Delete Reel</span>
+                  </button>
+                )}
               </div>
             )}
           </div>

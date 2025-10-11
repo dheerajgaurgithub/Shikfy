@@ -12,6 +12,13 @@ const Notifications = () => {
       try {
         const response = await apiClient.get('/notifications');
         setNotifications(response.data);
+        // broadcast current unread count to nav badges
+        try {
+          const unread = Array.isArray(response.data)
+            ? response.data.filter((n: any) => !n.readAt).length
+            : 0;
+          window.dispatchEvent(new CustomEvent('notifications:unread', { detail: { count: unread } }));
+        } catch {}
         // mark all as read when viewing notifications
         try {
           await apiClient.patch('/notifications/mark-all-read');
