@@ -56,7 +56,7 @@ const Chats: React.FC = () => {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
   const [replyToId, setReplyToId] = useState<string | null>(null);
   const [showReactForId, setShowReactForId] = useState<string | null>(null);
-  const [folder, setFolder] = useState<'primary'|'general'|'requests'>('primary');
+  const [folder, setFolder] = useState<'primary'|'general'|'requests'|''>('primary');
   const [showNewChat, setShowNewChat] = useState(false);
   const [searchUsers, setSearchUsers] = useState<any[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -362,6 +362,7 @@ const Chats: React.FC = () => {
           <button onClick={()=> setShowNewChat(true)} title="New chat" aria-label="New chat" className="px-2 py-1 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200">＋</button>
         </div>
         <div className="px-4 pb-2 flex gap-2">
+          <button onClick={()=> setFolder('' as any)} className={`px-3 py-1.5 rounded-full text-xs ${folder===''? 'bg-blue-600 text-white':'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}>All</button>
           <button onClick={()=> setFolder('primary')} className={`px-3 py-1.5 rounded-full text-xs ${folder==='primary'? 'bg-blue-600 text-white':'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}>Primary {folderCounts.primary? <span className="ml-1 px-1.5 rounded-full bg-white/20">{folderCounts.primary}</span> : null}</button>
           <button onClick={()=> setFolder('general')} className={`px-3 py-1.5 rounded-full text-xs ${folder==='general'? 'bg-blue-600 text-white':'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}>General {folderCounts.general? <span className="ml-1 px-1.5 rounded-full bg-white/20">{folderCounts.general}</span> : null}</button>
           <button onClick={()=> setFolder('requests')} className={`px-3 py-1.5 rounded-full text-xs ${folder==='requests'? 'bg-blue-600 text-white':'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200'}`}>Requests {folderCounts.requests? <span className="ml-1 px-1.5 rounded-full bg-white/20">{folderCounts.requests}</span> : null}</button>
@@ -369,6 +370,11 @@ const Chats: React.FC = () => {
         <div className="divide-y divide-gray-200 dark:divide-gray-700 max-h-[70vh] overflow-auto">
           {loadingChats ? (
             <div className="p-4 text-gray-500 dark:text-gray-400">Loading...</div>
+          ) : chats.length===0 ? (
+            <div className="p-6 text-center text-gray-500 dark:text-gray-400">
+              <div>No conversations here.</div>
+              <button onClick={()=> setShowNewChat(true)} className="mt-3 px-3 py-1.5 rounded-lg bg-blue-600 text-white">Start a new chat</button>
+            </div>
           ) : (
             chats.map((c) => {
               const other = c.members.find(m=> m._id!==user?.id);
@@ -698,7 +704,7 @@ const Chats: React.FC = () => {
             <input value={searchTerm} onChange={async (e)=>{ setSearchTerm(e.target.value); try { const r = await apiClient.get(`/users/search/${encodeURIComponent(e.target.value)}`); const existingIds = new Set(chats.flatMap(c=> c.members.map((m:any)=> String(m._id))).filter(id=> id!==user?.id)); const filtered = (r.data||[]).filter((u:any)=> !existingIds.has(String(u._id)) ); setSearchUsers(filtered); } catch {} }} placeholder="Search users" className="w-full px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200 mb-3" />
             <div className="max-h-72 overflow-auto divide-y divide-gray-200 dark:divide-gray-700">
               {searchUsers.map((u:any)=> (
-                <button key={u._id} onClick={async()=>{ try { const r = await apiClient.post('/chats', { type: 'dm', memberIds: [u._id] }); setShowNewChat(false); await selectChat(r.data); } catch {} }} className="w-full flex items-center gap-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg px-2">
+                <button key={u._id} onClick={async()=>{ try { const r = await apiClient.post('/chats', { type: 'dm', memberIds: [u._id] }); setShowNewChat(false); setChats(prev=> [r.data, ...prev]); try { if (socketRef.current) socketRef.current.emit('chat:join', r.data._id); } catch {} await selectChat(r.data); } catch {} }} className="w-full flex items-center gap-3 py-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg px-2">
                   <img src={u.profilePic||'https://via.placeholder.com/40'} className="w-8 h-8 rounded-full" />
                   <div className="text-left">
                     <div className="text-sm font-medium text-gray-900 dark:text-white">{u.displayName||u.username}</div>
