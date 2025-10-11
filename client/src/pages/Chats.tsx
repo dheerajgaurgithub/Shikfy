@@ -426,13 +426,27 @@ const Chats: React.FC = () => {
                     const online = otherId ? onlineMap[otherId] : false;
                     const lastSeen = otherId ? (lastSeenMap[otherId] || (other as any)?.lastSeen) : undefined;
                     return (
-                      <div className={`text-xs ${online? 'text-green-500':'text-gray-500 dark:text-gray-400'} flex items-center gap-2`}>
-                        {online ? (
-                          <>
-                            <span className="inline-block w-2 h-2 rounded-full bg-green-500"/> <span>Active now</span>
-                          </>
+                      <div className={`text-xs flex items-center gap-2 ${online? 'text-green-500':'text-gray-500 dark:text-gray-400'}`}>
+                        {typingOther ? (
+                          <div className="flex items-center gap-1 text-blue-500">
+                            <span className="inline-flex items-center">typing
+                              <span className="inline-block w-1 h-1 bg-current rounded-full ml-1 animate-bounce [animation-delay:-0.2s]"></span>
+                              <span className="inline-block w-1 h-1 bg-current rounded-full ml-1 animate-bounce [animation-delay:-0.1s]"></span>
+                              <span className="inline-block w-1 h-1 bg-current rounded-full ml-1 animate-bounce"></span>
+                            </span>
+                          </div>
+                        ) : online ? (
+                          <div className="flex items-center gap-2">
+                            <span className="inline-block w-2 h-2 rounded-full bg-green-500"/>
+                            <span>Active now</span>
+                            {/* both online indicator: me + other */}
+                            <span className="inline-flex items-center gap-1 ml-1">
+                              <span className="inline-block w-2 h-2 rounded-full bg-green-500"/>
+                              <span className="inline-block w-2 h-2 rounded-full bg-green-500"/>
+                            </span>
+                          </div>
                         ) : (
-                          <span>{typingOther ? 'typing…' : relativeTime(lastSeen)}</span>
+                          <span>{relativeTime(lastSeen)}</span>
                         )}
                       </div>
                     );
