@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Search, Film, Heart, Bookmark, Settings, LogOut, Menu, X, MessageSquare, Plus } from 'lucide-react';
+import { Home, Search, Film, Heart, LogOut, Menu, X, MessageSquare, Plus, Compass } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 import logo from '../logo.png';
@@ -87,13 +87,11 @@ const Layout = ({ children }: LayoutProps) => {
   };
 
   const navItems = [
-    { icon: Home, label: 'Home', path: '/' },
-    { icon: Search, label: 'Explore', path: '/explore' },
+    { icon: Home, label: 'Home', path: '/home' },
+    { icon: Compass, label: 'Explore', path: '/explore' },
     { icon: Film, label: 'Reels', path: '/reels' },
-    { icon: Heart, label: 'Notifications', path: '/notifications' },
-    { icon: Bookmark, label: 'Saved', path: '/saved' },
-    { icon: Settings, label: 'Settings', path: '/settings' },
     { icon: MessageSquare, label: 'Messages', path: '/chats' },
+    { icon: Heart, label: 'Notifications', path: '/notifications' },
   ];
 
   return (
