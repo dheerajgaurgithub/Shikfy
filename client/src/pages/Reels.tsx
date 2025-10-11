@@ -12,7 +12,7 @@ const Reels = () => {
   useEffect(() => {
     const fetchReels = async () => {
       try {
-        const response = await apiClient.get('/reels/feed');
+        const response = await apiClient.get('/reels/feed?random=true');
         setReels(response.data);
       } catch (error) {
         console.error('Failed to fetch reels:', error);
@@ -75,6 +75,7 @@ const Reels = () => {
                     </p>
                   </div>
                 </Link>
+                <FollowButton targetId={reel.authorId._id} />
               </div>
 
               <Link to={`/reel/${reel._id}`} className="block">
@@ -130,6 +131,34 @@ const Reels = () => {
         />
       )}
     </div>
+  );
+};
+
+const FollowButton = ({ targetId }: { targetId: string }) => {
+  const [following, setFollowing] = React.useState<boolean | null>(null);
+  const [loading, setLoading] = React.useState<boolean>(false);
+  React.useEffect(() => {
+    const load = async () => {
+      try {
+        const r = await apiClient.get(`/users/${targetId}/following-status`);
+        setFollowing(!!r.data?.following);
+      } catch { setFollowing(false); }
+    };
+    load();
+  }, [targetId]);
+  const toggle = async () => {
+    if (following===null || loading) return;
+    setLoading(true);
+    try {
+      if (!following) await apiClient.post(`/users/${targetId}/follow`); else await apiClient.delete(`/users/${targetId}/follow`);
+      setFollowing(!following);
+    } catch {} finally { setLoading(false); }
+  };
+  if (following===null) return <div className="w-20 h-8"/>;
+  return (
+    <button onClick={toggle} disabled={loading} className={`px-3 py-1.5 rounded-full text-xs font-semibold ${following? 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-200':'bg-blue-600 text-white'}`}>
+      {loading ? '...' : following? 'Unfollow' : 'Follow'}
+    </button>
   );
 };
 

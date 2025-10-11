@@ -5,6 +5,29 @@ import { Link } from 'react-router-dom';
 
 const Explore = () => {
   const [posts, setPosts] = useState<any[]>([]);
+  const [reels, setReels] = useState<any[]>([]);
+  const mixed = React.useMemo(()=>{
+    const a = (posts||[]).map((p:any)=> ({
+      __kind: 'post',
+      _id: p._id,
+      thumb: p?.media?.[0]?.thumbnail || p?.media?.[0]?.url,
+      isVideo: (p?.media?.[0]?.type === 'video'),
+      likesCount: p.likesCount||0,
+      commentsCount: p.commentsCount||0,
+    }));
+    const b = (reels||[]).map((r:any)=> ({
+      __kind: 'reel',
+      _id: r._id,
+      thumb: r?.video?.thumbnail,
+      isVideo: true,
+      likesCount: r.likesCount||0,
+      commentsCount: r.commentsCount||0,
+    }));
+    const all = [...a, ...b];
+    // simple shuffle
+    for (let i=all.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [all[i], all[j]] = [all[j], all[i]]; }
+    return all;
+  }, [posts, reels]);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -12,8 +35,12 @@ const Explore = () => {
   useEffect(() => {
     const fetchPosts = async () => {
       try {
-        const response = await apiClient.get('/posts/feed?page=1');
-        setPosts(response.data);
+        const [p, r] = await Promise.all([
+          apiClient.get('/posts/feed?page=1&random=true'),
+          apiClient.get('/reels/feed?page=1&random=true'),
+        ]);
+        setPosts(p.data || []);
+        setReels(r.data || []);
       } catch (error) {
         console.error('Failed to fetch posts:', error);
       } finally {
@@ -99,15 +126,7 @@ const Explore = () => {
           )}
         </div>
 
-        {/* Explore Posts Header */}
-        <div className="mb-6 sm:mb-8">
-          <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black bg-gradient-to-r from-blue-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-            Explore Posts
-          </h2>
-          <div className="h-1 w-16 sm:w-20 bg-gradient-to-r from-blue-500 to-purple-500 rounded-full mt-2"></div>
-        </div>
-
-        {/* Posts Grid */}
+        {/* Mixed Grid */}
         {loading ? (
           <div className="flex items-center justify-center py-16 sm:py-20">
             <div className="relative">
@@ -117,36 +136,21 @@ const Explore = () => {
           </div>
         ) : (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-1 sm:gap-2 lg:gap-3">
-            {posts.map((post, index) => (
-              <Link 
-                to={`/post/${post._id}`} 
-                key={post._id} 
-                className="relative group aspect-square bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden cursor-pointer shadow-md hover:shadow-xl transition-all duration-500 ring-2 ring-gray-300 dark:ring-slate-700 ring-opacity-0 hover:ring-opacity-100 group-hover:scale-105 transform"
-                style={{
-                  animationDelay: `${index * 50}ms`,
-                }}
+            {mixed.map((it:any, index:number)=> (
+              <Link
+                key={`${it.__kind}-${it._id}`}
+                to={it.__kind==='post' ? `/post/${it._id}` : `/reel/${it._id}`}
+                className={`relative group ${it.__kind==='reel' || it.isVideo? 'aspect-[9/16]':'aspect-square'} bg-gradient-to-br from-gray-200 to-gray-300 dark:from-slate-700 dark:to-slate-800 rounded-lg sm:rounded-xl lg:rounded-2xl overflow-hidden cursor-pointer shadow-md hover:shadow-xl transition-all duration-500 ring-2 ring-gray-300 dark:ring-slate-700 ring-opacity-0 hover:ring-opacity-100 group-hover:scale-105 transform`}
+                style={{ animationDelay: `${index*40}ms` }}
               >
-                {post.media && post.media[0] && (
-                  <img
-                    src={post.media[0].thumbnail || post.media[0].url}
-                    alt="Post"
-                    className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                )}
+                <img src={it.thumb || 'https://via.placeholder.com/400x400'} alt="Explore item" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110" />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                
-                {/* Stats Overlay */}
-                <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 transform translate-y-4 group-hover:translate-y-0">
-                  <div className="flex items-center gap-3 sm:gap-4 text-white font-bold text-sm sm:text-base">
-                    <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-2 rounded-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09A6.003 6.003 0 0 1 21 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"/></svg>
-                      <span>{post.likesCount || 0}</span>
-                    </div>
-                    <div className="flex items-center gap-1.5 bg-white/20 backdrop-blur-md px-3 py-2 rounded-full">
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 sm:h-5 sm:w-5" viewBox="0 0 24 24" fill="currentColor"><path d="M2 21l1.5-4.5C2.6 15.1 2 13.6 2 12 2 7.6 6.5 4 12 4s10 3.6 10 8-4.5 8-10 8c-1.6 0-3.1-.3-4.5-.8L2 21z"/></svg>
-                      <span>{post.commentsCount || 0}</span>
-                    </div>
-                  </div>
+                {it.isVideo && (
+                  <div className="absolute top-2 right-2 bg-black/50 text-white text-[10px] px-1.5 py-0.5 rounded">Video</div>
+                )}
+                <div className="absolute bottom-2 left-2 text-white text-xs sm:text-sm bg-black/40 px-2 py-1 rounded-md flex items-center gap-2">
+                  <span>❤ {it.likesCount||0}</span>
+                  <span>💬 {it.commentsCount||0}</span>
                 </div>
               </Link>
             ))}

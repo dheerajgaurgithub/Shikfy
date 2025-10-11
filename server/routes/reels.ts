@@ -61,6 +61,7 @@ router.get('/feed', authenticateToken, async (req: AuthRequest, res) => {
     const page = parseInt(req.query.page as string) || 1;
     const limit = 10;
     const skip = (page - 1) * limit;
+    const random = String(req.query.random||'').toLowerCase()==='true';
 
     const userId = req.userId!;
     const [followingDocs, followersDocs] = await Promise.all([
@@ -72,11 +73,21 @@ router.get('/feed', authenticateToken, async (req: AuthRequest, res) => {
     const mutualIds = new Set<string>();
     followingIds.forEach(id => { if (followersIds.has(id)) mutualIds.add(id); });
 
-    const candidates = await Reel.find({})
-      .sort({ createdAt: -1 })
-      .skip(skip)
-      .limit(limit * 2)
-      .populate('authorId', 'username displayName profilePic verified closeFriends');
+    let candidates: any[];
+    if (random && page===1) {
+      const sampled = await Reel.aggregate([
+        { $sample: { size: limit * 2 } },
+      ] as any);
+      const ids = sampled.map((d:any)=> d._id);
+      candidates = await Reel.find({ _id: { $in: ids } })
+        .populate('authorId', 'username displayName profilePic verified closeFriends');
+    } else {
+      candidates = await Reel.find({})
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit * 2)
+        .populate('authorId', 'username displayName profilePic verified closeFriends');
+    }
 
     const visible = candidates.filter((r: any) => {
       const authorId = String(r.authorId?._id || r.authorId);

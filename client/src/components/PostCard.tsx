@@ -24,9 +24,10 @@ interface Post {
 interface PostCardProps {
   post: Post;
   onDelete?: (postId: string) => void;
+  onOpenDialog?: (postId: string) => void;
 }
 
-const PostCard = ({ post, onDelete }: PostCardProps) => {
+const PostCard = ({ post, onDelete, onOpenDialog }: PostCardProps) => {
   const { user } = useAuth();
   const [liked, setLiked] = useState(false);
   const [bookmarked, setBookmarked] = useState(false);
@@ -40,22 +41,24 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
   const [translatedCaption, setTranslatedCaption] = useState<string>('');
   const [translating, setTranslating] = useState<boolean>(false);
   const [showOriginal, setShowOriginal] = useState<boolean>(true);
+  useEffect(() => {
+    const pref = localStorage.getItem(`post:${post._id}:showOriginal`);
+    if (pref !== null) setShowOriginal(pref === '1');
+  }, [post._id]);
+  const setShow = (v: boolean) => {
+    setShowOriginal(v);
+    localStorage.setItem(`post:${post._id}:showOriginal`, v ? '1' : '0');
+  };
 
   const translateCaption = async (targetLang: string = 'en') => {
     if (!post.caption || translating) return;
     setTranslating(true);
     try {
-      const URL = (import.meta as any).env?.VITE_TRANSLATE_URL || 'https://libretranslate.de/translate';
-      const res = await fetch(URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ q: post.caption, source: 'auto', target: targetLang, format: 'text' })
-      });
-      const data = await res.json();
-      const out = data?.translatedText || data?.translation || '';
+      const res = await apiClient.post('/translate', { q: post.caption, source: 'auto', target: targetLang, format: 'text' });
+      const out = res.data?.translatedText || '';
       if (out) {
         setTranslatedCaption(out);
-        setShowOriginal(false);
+        setShow(false);
       }
     } catch (e) {
       console.warn('Translate failed', e);
@@ -213,7 +216,7 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
       </div>
 
       {post.media && post.media.length > 0 && (
-        <div className="relative bg-black">
+        <div className={`relative bg-black ${onOpenDialog? 'cursor-pointer':''}`} onClick={()=> onOpenDialog?.(post._id)}>
           {post.media[0].type === 'image' ? (
             <img
               src={post.media[0].url}
@@ -250,15 +253,17 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
               </span>
             </button>
 
-            <Link
-              to={`/post/${post._id}`}
-              className="flex items-center space-x-1 group"
-            >
-              <MessageCircle className="w-6 h-6 text-gray-700 dark:text-gray-300 group-hover:text-blue-500 transition" />
-              <span className="text-sm font-semibold text-gray-900 dark:text-white">
-                {post.commentsCount}
-              </span>
-            </Link>
+            {onOpenDialog ? (
+              <button onClick={()=> onOpenDialog(post._id)} className="flex items-center space-x-1 group">
+                <MessageCircle className="w-6 h-6 text-gray-700 dark:text-gray-300 group-hover:text-blue-500 transition" />
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">{post.commentsCount}</span>
+              </button>
+            ) : (
+              <Link to={`/post/${post._id}`} className="flex items-center space-x-1 group">
+                <MessageCircle className="w-6 h-6 text-gray-700 dark:text-gray-300 group-hover:text-blue-500 transition" />
+                <span className="text-sm font-semibold text-gray-900 dark:text-white">{post.commentsCount}</span>
+              </Link>
+            )}
             <button onClick={()=>setShowShare(true)} className="group">
               <Send className="w-6 h-6 text-gray-700 dark:text-gray-300 group-hover:text-blue-500" />
             </button>
@@ -302,7 +307,7 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
                 <div className="mt-1">
                   <button
                     className="text-xs text-blue-600 dark:text-blue-400"
-                    onClick={() => setShowOriginal(true)}
+                    onClick={() => setShow(true)}
                   >
                     Show original
                   </button>

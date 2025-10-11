@@ -245,11 +245,12 @@ const ReelDetail = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto px-4 py-8">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700">
-        <div className="relative bg-black aspect-[9/16]">
-          <video src={reel.video.url} poster={reel.video.thumbnail} controls className="w-full h-full object-contain" />
-          {/* Right-side action bar */}
+    <div className="max-w-6xl mx-auto px-4 py-6 lg:py-8">
+      <div className="bg-white dark:bg-gray-900 rounded-2xl border border-gray-200 dark:border-gray-800 overflow-hidden grid grid-cols-1 lg:grid-cols-2 gap-0">
+        {/* Left: Video */}
+        <div className="relative bg-black flex items-center justify-center lg:min-h-[85vh]">
+          <video src={reel.video.url} poster={reel.video.thumbnail} controls className="w-full h-full max-h-[85vh] object-contain" />
+          {/* Floating action bar */}
           <div className="absolute right-3 bottom-6 flex flex-col items-center gap-4">
             <button onClick={handleLike} className="flex flex-col items-center text-white">
               <Heart className={`w-7 h-7 ${liked ? 'fill-red-500 text-red-500' : 'text-white/90'}`} />
@@ -266,38 +267,24 @@ const ReelDetail = () => {
             </button>
           </div>
         </div>
-        <div className="p-4">
-          <div className="flex items-center space-x-3 mb-3">
+
+        {/* Right: Comments panel */}
+        <div className="flex flex-col max-h-[85vh] lg:border-l border-gray-200 dark:border-gray-800">
+          {/* Header */}
+          <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex items-center gap-3">
             <Link to={`/profile/${reel.authorId._id}`} className="font-semibold text-gray-900 dark:text-white">
               {reel.authorId.username}
             </Link>
-            <span className="text-gray-600 dark:text-gray-400">{reel.caption}</span>
+            <span className="text-gray-600 dark:text-gray-400 truncate">{reel.caption}</span>
             {user?.id === reel.authorId._id && (
               <div className="ml-auto flex gap-2">
-                <button onClick={()=>{setShowEdit(true); setEditVisibility((reel as any).visibility || 'public'); setEditStatus(((reel as any).status)||'published'); setEditScheduledAt(((reel as any).scheduledAt)? new Date((reel as any).scheduledAt).toISOString().slice(0,16):'');}} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-800 dark:text-gray-200">Edit</button>
-                <button onClick={loadSavers} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 rounded-lg text-gray-800 dark:text-gray-200">Savers</button>
+                <button onClick={()=>{setShowEdit(true); setEditVisibility((reel as any).visibility || 'public'); setEditStatus(((reel as any).status)||'published'); setEditScheduledAt(((reel as any).scheduledAt)? new Date((reel as any).scheduledAt).toISOString().slice(0,16):'');}} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-800 dark:text-gray-200">Edit</button>
+                <button onClick={loadSavers} className="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-800 rounded-lg text-gray-800 dark:text-gray-200">Savers</button>
               </div>
             )}
           </div>
-
-          <form onSubmit={handleAddComment} className="flex items-center space-x-2 mb-4">
-            <input
-              ref={commentInputRef}
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Add a comment..."
-              className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-700 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white"
-            />
-            <button
-              type="submit"
-              disabled={submitting || !commentText.trim()}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50"
-            >
-              {submitting ? 'Posting...' : 'Post'}
-            </button>
-          </form>
-
-          <div className="space-y-4">
+          {/* Comments scroll area */}
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
             {comments.map((c) => (
               <div key={c._id} className="flex items-start space-x-3">
                 <div className="w-9 h-9 rounded-full bg-gradient-to-r from-blue-500 to-pink-500 flex items-center justify-center text-white font-bold">
@@ -349,6 +336,23 @@ const ReelDetail = () => {
               <div className="text-gray-500 dark:text-gray-400">No comments yet</div>
             )}
           </div>
+          {/* Composer */}
+          <form onSubmit={handleAddComment} className="p-4 border-t border-gray-200 dark:border-gray-800 flex items-center gap-2">
+            <input
+              ref={commentInputRef}
+              value={commentText}
+              onChange={(e) => setCommentText(e.target.value)}
+              placeholder="Add a comment..."
+              className="flex-1 px-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white"
+            />
+            <button
+              type="submit"
+              disabled={submitting || !commentText.trim()}
+              className="px-4 py-2 bg-blue-600 text-white rounded-lg disabled:opacity-50"
+            >
+              {submitting ? 'Posting...' : 'Post'}
+            </button>
+          </form>
         </div>
       </div>
       {showEdit && reel && (
