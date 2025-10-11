@@ -408,6 +408,27 @@ router.post('/:id/comments', authenticateToken, async (req: AuthRequest, res) =>
       return res.status(400).json({ error: 'Comment text is required' });
     }
 
+    // Simple moderation: if author is private, block toxic/spammy comments
+    try {
+      const post = await Post.findById(postId).select('authorId');
+      if (post) {
+        const author = await User.findById((post as any).authorId).select('privacySettings');
+        const isPrivate = (author as any)?.privacySettings?.profileVisibility === 'private';
+        if (isPrivate) {
+          const banned = [
+            'hate', 'kill', 'suicide', 'racist', 'terror', 'sex', 'nazi', 'slur', 'idiot', 'stupid', 'dumb'
+          ];
+          const lowered = String(text).toLowerCase();
+          const hasBanned = banned.some(w => lowered.includes(w));
+          const repeatedChars = /(.)\1{5,}/.test(lowered); // e.g., aaaaaa
+          const repeatedWords = /(\b\w+\b)(?:\s+\1){3,}/i.test(lowered); // word repeated 4+ times
+          if (hasBanned || repeatedChars || repeatedWords) {
+            return res.status(400).json({ error: 'Comment flagged by moderation' });
+          }
+        }
+      }
+    } catch {}
+
     const comment = await Comment.create({
       postId,
       authorId: req.userId,

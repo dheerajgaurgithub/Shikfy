@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Send } from 'lucide-react';
+import { Heart, MessageCircle, Bookmark, MoreHorizontal, Trash2, Send, Globe } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 
@@ -37,6 +37,33 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [shareSearch, setShareSearch] = useState('');
   const [sharing, setSharing] = useState(false);
+  const [translatedCaption, setTranslatedCaption] = useState<string>('');
+  const [translating, setTranslating] = useState<boolean>(false);
+  const [showOriginal, setShowOriginal] = useState<boolean>(true);
+
+  const translateCaption = async (targetLang: string = 'en') => {
+    if (!post.caption || translating) return;
+    setTranslating(true);
+    try {
+      const URL = (import.meta as any).env?.VITE_TRANSLATE_URL || 'https://libretranslate.de/translate';
+      const res = await fetch(URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ q: post.caption, source: 'auto', target: targetLang, format: 'text' })
+      });
+      const data = await res.json();
+      const out = data?.translatedText || data?.translation || '';
+      if (out) {
+        setTranslatedCaption(out);
+        setShowOriginal(false);
+      }
+    } catch (e) {
+      console.warn('Translate failed', e);
+      alert('Failed to translate.');
+    } finally {
+      setTranslating(false);
+    }
+  };
 
   useEffect(() => {
     const fetchStatuses = async () => {
@@ -253,13 +280,35 @@ const PostCard = ({ post, onDelete }: PostCardProps) => {
 
         {post.caption && (
           <div className="text-gray-900 dark:text-white">
-            <Link
-              to={`/profile/${post.authorId._id}`}
-              className="font-semibold mr-2"
-            >
+            <Link to={`/profile/${post.authorId._id}`} className="font-semibold mr-2">
               {post.authorId.username}
             </Link>
-            <span>{post.caption}</span>
+            {showOriginal || !translatedCaption ? (
+              <>
+                <span>{post.caption}</span>
+                <div className="mt-1">
+                  <button
+                    className="text-xs text-blue-600 dark:text-blue-400 inline-flex items-center gap-1"
+                    onClick={() => translateCaption('en')}
+                    disabled={translating}
+                  >
+                    <Globe className="w-3 h-3" /> {translating ? 'Translating…' : 'See translation'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <span>{translatedCaption}</span>
+                <div className="mt-1">
+                  <button
+                    className="text-xs text-blue-600 dark:text-blue-400"
+                    onClick={() => setShowOriginal(true)}
+                  >
+                    Show original
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         )}
       </div>

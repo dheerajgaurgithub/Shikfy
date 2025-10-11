@@ -23,6 +23,7 @@ import Message from './models/Message';
 import Chat from './models/Chat';
 import searchRoutes from './routes/search';
 import storiesRoutes from './routes/stories';
+import translateRoutes from './routes/translate';
 
 const app = express();
 const httpServer = createServer(app);
@@ -83,6 +84,7 @@ app.use('/api/hubs', hubsRoutes);
 app.use('/api/search', searchRoutes);
 app.use('/api/stories', storiesRoutes);
 app.use('/api/uploads', uploadsRoutes);
+app.use('/api/translate', translateRoutes);
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/dev', devRoutes);
 }
