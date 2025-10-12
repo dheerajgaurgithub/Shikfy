@@ -131,9 +131,11 @@ router.get('/reports', async (req, res) => {
     const limit = Math.min(100, Math.max(1, Number(req.query.limit || 25)));
     const type = String(req.query.type || '');
     const status = String(req.query.status || '');
+    const targetId = String(req.query.targetId || '');
     const q: any = {};
     if (type) q.type = type;
     if (status) q.status = status;
+    if (targetId && targetId !== 'undefined' && targetId !== 'null') q.targetId = targetId;
     const [items, total] = await Promise.all([
       Report.find(q).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
       Report.countDocuments(q)

@@ -26,6 +26,7 @@ const Profile = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const isAdmin = Array.isArray((currentUser as any)?.roles) && (currentUser as any).roles.includes('admin');
   const [user, setUser] = useState<UserProfile | null>(null);
   const [posts, setPosts] = useState<any[]>([]);
   const [reels, setReels] = useState<any[]>([]);
@@ -40,6 +41,12 @@ const Profile = () => {
   const [hasActiveStory, setHasActiveStory] = useState(false);
   const [showCover, setShowCover] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [showReport, setShowReport] = useState(false);
+  const [reportReasons, setReportReasons] = useState<string[]>([]);
+  const [reportDetails, setReportDetails] = useState('');
+  const [adminReports, setAdminReports] = useState<any[]>([]);
+  const [adminReportsLoading, setAdminReportsLoading] = useState(false);
+  const [adminMessage, setAdminMessage] = useState('');
 
   const isOwnProfile = currentUser?.id === id;
 
@@ -75,6 +82,23 @@ const Profile = () => {
     };
     fetchProfile();
   }, [id, isOwnProfile]);
+
+  // Load reports for this account if admin viewing someone else
+  useEffect(() => {
+    const loadReports = async () => {
+      if (!id || !isAdmin || isOwnProfile) return;
+      setAdminReportsLoading(true);
+      try {
+        const r = await apiClient.get('/admin/reports', { params: { type: 'account', targetId: id, status: 'open', page: 1, limit: 10 } });
+        setAdminReports(Array.isArray(r.data?.items) ? r.data.items : []);
+      } catch {
+        setAdminReports([]);
+      } finally {
+        setAdminReportsLoading(false);
+      }
+    };
+    loadReports();
+  }, [id, isAdmin, isOwnProfile]);
 
   useEffect(() => {
     const fetchTab = async () => {
@@ -293,12 +317,61 @@ const Profile = () => {
                       <MessageCircle className="w-5 h-5" />
                       <span>Message</span>
                     </button>
+                    <button
+                      onClick={() => setShowReport(true)}
+                      className="flex-1 sm:flex-initial px-6 py-3 rounded-xl font-bold bg-gradient-to-r from-red-600 to-pink-600 text-white hover:from-red-700 hover:to-pink-700 transition-all duration-300 shadow-lg hover:shadow-xl transform hover:scale-105"
+                    >
+                      Report
+                    </button>
                   </div>
                 )}
               </div>
             </div>
           </div>
         </div>
+
+        {/* Admin Reports & Complaints box */}
+        {isAdmin && !isOwnProfile && (
+          <div className="mb-6 bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="text-lg font-bold text-gray-900 dark:text-white">Reports & Complaints (Admin)</h3>
+              <span className="text-sm text-gray-500 dark:text-gray-400">{adminReportsLoading ? 'Loading…' : `${adminReports.length} open`}</span>
+            </div>
+            {adminReports.length === 0 ? (
+              <div className="text-sm text-gray-500 dark:text-gray-400">No open reports for this account.</div>
+            ) : (
+              <ul className="space-y-2 mb-4">
+                {adminReports.map((rep:any) => (
+                  <li key={rep._id} className="p-3 rounded-xl bg-gray-50 dark:bg-gray-900/40 border border-gray-200 dark:border-gray-700">
+                    <div className="text-sm text-gray-800 dark:text-gray-200"><span className="font-semibold">Reasons:</span> {rep.reason}</div>
+                    {rep.details && <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{rep.details}</div>}
+                    <div className="text-xs text-gray-400 mt-1">{new Date(rep.createdAt).toLocaleString()}</div>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <div>
+              <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">Send a message to this user</label>
+              <div className="flex gap-2">
+                <textarea value={adminMessage} onChange={(e)=> setAdminMessage(e.target.value)} placeholder="Type your warning or message..." className="flex-1 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white" rows={2} />
+                <button onClick={async ()=>{
+                  if (!id || !adminMessage.trim()) return;
+                  try {
+                    const chatRes = await apiClient.post('/chats', { type: 'dm', memberIds: [id] });
+                    const chatId = chatRes.data?._id;
+                    if (chatId) {
+                      await apiClient.post('/messages', { chatId, content: adminMessage.trim() });
+                      setAdminMessage('');
+                      alert('Message sent');
+                    }
+                  } catch {
+                    alert('Failed to send message');
+                  }
+                }} className="px-4 py-2 rounded-lg bg-blue-600 text-white self-start">Send</button>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Enhanced Tabs Section */}
         <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-xl rounded-2xl border border-gray-200/50 dark:border-gray-700/50 shadow-xl mb-6 overflow-hidden">
@@ -551,6 +624,29 @@ const Profile = () => {
             setUser(prev=> prev ? { ...prev, ...u } : u);
           }}
         />
+      )}
+
+      {/* Report Profile Modal */}
+      {showReport && user && (
+        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=> setShowReport(false)}>
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-4" onClick={(e)=> e.stopPropagation()}>
+            <div className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Report profile</div>
+            <div className="mb-3 text-sm text-gray-600 dark:text-gray-300">Select one or more reasons:</div>
+            <div className="grid grid-cols-1 gap-2 mb-3 text-sm">
+              {['Spam','Impersonation','Harassment or bullying','Hate speech or symbols','Scam or fraud','Nudity','Misinformation','Self-harm','Other'].map(r=> (
+                <label key={r} className="flex items-center gap-2">
+                  <input type="checkbox" checked={reportReasons.includes(r)} onChange={(e)=> setReportReasons(prev => e.target.checked ? [...prev, r] : prev.filter(x=>x!==r))} />
+                  <span>{r}</span>
+                </label>
+              ))}
+            </div>
+            <textarea value={reportDetails} onChange={(e)=> setReportDetails(e.target.value)} placeholder="Additional details (optional)" className="w-full mb-4 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white" rows={3} />
+            <div className="flex justify-end gap-2">
+              <button onClick={()=> setShowReport(false)} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg text-gray-800 dark:text-gray-200">Cancel</button>
+              <button onClick={async ()=>{ try { const reasons = reportReasons.filter(r=> r && r.trim().length>0); if (reasons.length===0 && !reportDetails.trim()) { alert('Please select at least one reason or add details.'); return; } await apiClient.post('/reports', { targetType: 'account', targetId: user._id, reasons, details: reportDetails.trim() }); alert('Report submitted'); } catch {} finally { setShowReport(false); setReportReasons([]); setReportDetails(''); } }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Submit</button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

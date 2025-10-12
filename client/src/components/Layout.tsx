@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Film, LogOut, Menu, X, MessageSquare, Plus, Compass, Settings, User, Bell } from 'lucide-react';
+import { Home, Film, LogOut, Menu, X, MessageSquare, Plus, Compass, Settings, User, Bell, Grid } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../api/client';
 import { io as socketIO } from 'socket.io-client';
@@ -112,13 +112,24 @@ const Layout = ({ children }: LayoutProps) => {
     navigate('/login');
   };
 
-  const navItems = [
-    { icon: Home, label: 'Home', path: '/home' },
-    { icon: Compass, label: 'Explore', path: '/explore' },
-    { icon: Film, label: 'Reels', path: '/reels' },
-    { icon: MessageSquare, label: 'Messages', path: '/chats', badge: chatsUnread },
-    { icon: Bell, label: 'Notifications', path: '/notifications', badge: notifUnread },
-  ];
+  const isAdmin = Array.isArray((user as any)?.roles) && (user as any).roles.includes('admin');
+  const navItems = isAdmin
+    ? [
+        { icon: Home, label: 'Home', path: '/home' },
+        { icon: Compass, label: 'Explore', path: '/explore' },
+        { icon: User, label: 'Users', path: '/admin/users' },
+        { icon: Grid, label: 'Posts', path: '/admin/posts' },
+        { icon: Film, label: 'Reels', path: '/admin/reels' },
+        { icon: Bell, label: 'Reports', path: '/admin/reports' },
+        { icon: Bell, label: 'Notifications', path: '/notifications', badge: notifUnread },
+      ]
+    : [
+        { icon: Home, label: 'Home', path: '/home' },
+        { icon: Compass, label: 'Explore', path: '/explore' },
+        { icon: Film, label: 'Reels', path: '/reels' },
+        { icon: MessageSquare, label: 'Messages', path: '/chats', badge: chatsUnread },
+        { icon: Bell, label: 'Notifications', path: '/notifications', badge: notifUnread },
+      ];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-blue-50 dark:from-slate-950 dark:via-slate-900 dark:to-blue-950">

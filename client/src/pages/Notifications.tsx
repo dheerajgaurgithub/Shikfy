@@ -50,6 +50,12 @@ const Notifications = () => {
             <MessageCircle className="w-6 h-6 text-white" />
           </div>
         );
+      case 'report':
+        return (
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-orange-500 to-red-600 flex items-center justify-center shadow-lg shadow-orange-500/30">
+            <Bell className="w-6 h-6 text-white" />
+          </div>
+        );
       case 'follow':
         return (
           <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-green-500 to-emerald-500 flex items-center justify-center shadow-lg shadow-green-500/30">
@@ -71,6 +77,10 @@ const Notifications = () => {
         return 'liked your post';
       case 'comment':
         return 'commented on your post';
+      case 'report': {
+        const t = notification.payload?.targetType || (notification.postId? 'post' : notification.reelId? 'reel':'account');
+        return `submitted a report on ${t}`;
+      }
       case 'follow':
         if (notification.payload?.pending) return 'requested to follow you';
         if (notification.payload?.accepted) return 'accepted your follow request';
