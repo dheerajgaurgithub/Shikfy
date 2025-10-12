@@ -29,6 +29,12 @@ import Guidelines from './pages/Guidelines';
 import Terms from './pages/Terms';
 import Privacy from './pages/Privacy';
 import Cookies from './pages/Cookies';
+import AdminLayout from './pages/admin/AdminLayout';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminUsers from './pages/admin/Users';
+import AdminPosts from './pages/admin/Posts';
+import AdminReels from './pages/admin/Reels';
+import AdminReports from './pages/admin/Reports';
 
 const PrivateRoute = ({ children }: { children: React.ReactNode }) => {
   const { user, loading } = useAuth();
@@ -201,6 +207,23 @@ function App() {
             <Route path="/terms" element={<PublicRoute><Terms /></PublicRoute>} />
             <Route path="/privacy" element={<PublicRoute><Privacy /></PublicRoute>} />
             <Route path="/cookies" element={<PublicRoute><Cookies /></PublicRoute>} />
+
+            {/* Admin */}
+            <Route
+              path="/admin"
+              element={
+                <PrivateRoute>
+                  <AdminLayout />
+                </PrivateRoute>
+              }
+            >
+              <Route index element={<AdminDashboard />} />
+              <Route path="users" element={<AdminUsers />} />
+              <Route path="posts" element={<AdminPosts />} />
+              <Route path="reels" element={<AdminReels />} />
+              <Route path="reports" element={<AdminReports />} />
+              <Route path="audit" element={<div className="text-gray-500 p-4">Audit coming soon</div>} />
+            </Route>
           </Routes>
         </Router>
       </AuthProvider>

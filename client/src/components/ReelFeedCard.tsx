@@ -15,7 +15,8 @@ const ReelFeedCard: React.FC<ReelFeedCardProps> = ({ reel, onDelete }) => {
   const author = reel.authorId || {};
   const [showMenu, setShowMenu] = React.useState(false);
   const [showReport, setShowReport] = React.useState(false);
-  const [reportReason, setReportReason] = React.useState('');
+  const [reportReasons, setReportReasons] = React.useState<string[]>([]);
+  const [reportDetails, setReportDetails] = React.useState('');
   const menuRef = React.useRef<HTMLDivElement | null>(null);
   const [bookmarked, setBookmarked] = React.useState<boolean>(false);
   React.useEffect(()=>{
@@ -54,20 +55,19 @@ const ReelFeedCard: React.FC<ReelFeedCardProps> = ({ reel, onDelete }) => {
       <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={()=> setShowReport(false)}>
         <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl w-full max-w-md p-4" onClick={(e)=> e.stopPropagation()}>
           <div className="text-lg font-semibold text-gray-900 dark:text-white mb-3">Report reel</div>
-          <label className="block text-sm text-gray-600 dark:text-gray-300 mb-1">Reason</label>
-          <select value={reportReason} onChange={(e)=> setReportReason(e.target.value)} className="w-full mb-3 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white">
-            <option value="">Select a reason…</option>
-            <option value="Spam">Spam</option>
-            <option value="Nudity">Nudity</option>
-            <option value="Hate speech or symbols">Hate speech or symbols</option>
-            <option value="Violence or dangerous organizations">Violence or dangerous organizations</option>
-            <option value="Harassment or bullying">Harassment or bullying</option>
-            <option value="Scam or fraud">Scam or fraud</option>
-            <option value="Other">Other</option>
-          </select>
+          <div className="mb-3 text-sm text-gray-600 dark:text-gray-300">Select one or more reasons:</div>
+          <div className="grid grid-cols-1 gap-2 mb-3 text-sm">
+            {['Spam','Nudity','Hate speech or symbols','Violence or dangerous organizations','Harassment or bullying','Scam or fraud','Misinformation','Self-harm','Copyright'].map(r=> (
+              <label key={r} className="flex items-center gap-2">
+                <input type="checkbox" checked={reportReasons.includes(r)} onChange={(e)=> setReportReasons(prev => e.target.checked ? [...prev, r] : prev.filter(x=>x!==r))} />
+                <span>{r}</span>
+              </label>
+            ))}
+          </div>
+          <textarea value={reportDetails} onChange={(e)=> setReportDetails(e.target.value)} placeholder="Additional details (optional)" className="w-full mb-4 px-3 py-2 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white" rows={3} />
           <div className="flex justify-end gap-2">
             <button onClick={()=> setShowReport(false)} className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded-lg text-gray-800 dark:text-gray-200">Cancel</button>
-            <button disabled={!reportReason} onClick={async ()=>{ try{ await fetch('/api/reports', { method:'POST', headers:{ 'Content-Type':'application/json' }, body: JSON.stringify({ targetType:'reel', targetId: reel?._id, reason: reportReason }) }); alert('Report submitted'); } catch{} finally { setShowReport(false); setReportReason(''); } }} className="px-4 py-2 bg-red-600 text-white rounded-lg disabled:opacity-50">Submit</button>
+            <button onClick={async ()=>{ try{ const reasons = reportReasons.filter(r=>r && r.trim().length>0); if (reasons.length===0 && !reportDetails.trim()) { alert('Please select at least one reason or add details.'); return; } await apiClient.post('/reports', { targetType:'reel', targetId: reel?._id, reasons, details: reportDetails.trim() }); alert('Report submitted'); } catch{} finally { setShowReport(false); setReportReasons([]); setReportDetails(''); } }} className="px-4 py-2 bg-red-600 text-white rounded-lg">Submit</button>
           </div>
         </div>
       </div>

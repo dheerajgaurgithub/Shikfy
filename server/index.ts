@@ -19,12 +19,15 @@ import messagesRoutes from './routes/messages';
 import uploadsRoutes from './routes/uploads';
 import devRoutes from './routes/dev';
 import User from './models/User';
+import bcrypt from 'bcryptjs';
 import hubsRoutes from './routes/hubs';
 import Message from './models/Message';
 import Chat from './models/Chat';
 import searchRoutes from './routes/search';
 import storiesRoutes from './routes/stories';
 import translateRoutes from './routes/translate';
+import reportsRoutes from './routes/reports';
+import adminRoutes from './routes/admin';
 
 const app = express();
 const httpServer = createServer(app);
@@ -91,6 +94,40 @@ app.use(cookieParser());
 // ✅ Connect to MongoDB
 connectDatabase();
 
+// ✅ Seed hardcoded admin (as requested)
+const seedAdmin = async () => {
+  try {
+    const email = 'dheerajgaur.0fficial@gmail.com';
+    const plainPassword = 'she@160106';
+    const username = 'dheerajgaur.0fficial';
+    const displayName = 'Admin';
+
+    const existing = await User.findOne({ email });
+    const passwordHash = await bcrypt.hash(plainPassword, 10);
+    if (!existing) {
+      await User.create({
+        username,
+        email,
+        passwordHash,
+        displayName,
+        roles: ['admin', 'user'],
+        verified: true
+      } as any);
+      console.log('👑 Seeded admin user');
+    } else {
+      const roles = new Set([...(existing as any).roles || [], 'admin', 'user']);
+      (existing as any).roles = Array.from(roles);
+      (existing as any).passwordHash = passwordHash; // ensure known password
+      if (!(existing as any).displayName) (existing as any).displayName = displayName;
+      await existing.save();
+      console.log('👑 Ensured admin privileges for existing admin account');
+    }
+  } catch (e) {
+    console.error('Failed to seed admin:', e);
+  }
+};
+seedAdmin();
+
 // ✅ Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/users', usersRoutes);
@@ -105,6 +142,8 @@ app.use('/api/search', searchRoutes);
 app.use('/api/stories', storiesRoutes);
 app.use('/api/uploads', uploadsRoutes);
 app.use('/api/translate', translateRoutes);
+app.use('/api/reports', reportsRoutes);
+app.use('/api/admin', adminRoutes);
 
 if (process.env.NODE_ENV !== 'production') {
   app.use('/api/dev', devRoutes);

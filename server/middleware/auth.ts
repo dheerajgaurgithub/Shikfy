@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import jwt from 'jsonwebtoken';
+import User from '../models/User';
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-secret-key-change-in-production';
 
@@ -30,4 +31,20 @@ export const authenticateToken = (
 
 export const generateToken = (userId: string): string => {
   return jwt.sign({ userId }, JWT_SECRET, { expiresIn: '7d' });
+};
+
+export const requireAdmin = async (
+  req: AuthRequest,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.userId) return res.status(401).json({ error: 'Unauthorized' });
+    const user = await User.findById(req.userId).lean();
+    const roles: string[] = (user as any)?.roles || [];
+    if (!roles.includes('admin')) return res.status(403).json({ error: 'Admin only' });
+    next();
+  } catch (e) {
+    return res.status(500).json({ error: 'Admin check failed' });
+  }
 };

@@ -41,6 +41,40 @@ A modern, full‑stack social platform focused on stories, reels, chat, and priv
 
 ## 3) Repository Layout
 ```
+
+---
+
+## 15) Admin Panel
+
+- **URL**: `/admin` (client) and `/api/admin/*` (server APIs)
+- **Access**: Requires an admin user (roles contains `admin`).
+- **Seeded admin (dev/local)**:
+  - Email: `dheerajgaur.0fficial@gmail.com`
+  - Password: `she@160106`
+
+### Features
+- **Dashboard**: `GET /api/admin/dashboard/summary` → users, posts, reels, open reports counts
+- **Users**: list/search, block/unblock
+- **Posts**: list/delete
+- **Reels**: list/delete
+- **Reports**: list/resolve
+
+### Client Files
+- `client/src/pages/admin/AdminLayout.tsx`
+- `client/src/pages/admin/Dashboard.tsx`
+- `client/src/pages/admin/Users.tsx`
+- `client/src/pages/admin/Posts.tsx`
+- `client/src/pages/admin/Reels.tsx`
+- `client/src/pages/admin/Reports.tsx`
+
+### Server
+- Mounted in `server/index.ts`: `app.use('/api/admin', adminRoutes)`
+- Routes in `server/routes/admin.ts`
+- RBAC middleware `requireAdmin` in `server/middleware/auth.ts`
+
+### Postman
+- Import the collection: `docs/postman/Shikfy.postman_collection.json`
+- Folder: `Admin` contains all admin endpoints.
 Shikfy/
 ├─ client/                 # React + Vite frontend
 │  ├─ src/

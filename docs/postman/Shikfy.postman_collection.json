@@ -98,6 +98,51 @@
         }
       },
       "response": []
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Dashboard - Summary",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/dashboard/summary", "host": ["{{baseUrl}}"], "path": ["admin","dashboard","summary"] } }
+        },
+        {
+          "name": "Users - List",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/users?page=1&limit=25", "host": ["{{baseUrl}}"], "path": ["admin","users"], "query":[{"key":"page","value":"1"},{"key":"limit","value":"25"}] } }
+        },
+        {
+          "name": "Users - Block",
+          "request": { "method": "PATCH", "header":[{"key":"Content-Type","value":"application/json"}], "url": { "raw": "{{baseUrl}}/admin/users/:id/block", "host": ["{{baseUrl}}"], "path": ["admin","users",":id","block"] }, "body": { "mode":"raw", "raw": "{\n  \"until\": \"2025-12-31\",\n  \"reason\": \"policy_violation\"\n}" } }
+        },
+        {
+          "name": "Users - Unblock",
+          "request": { "method": "PATCH", "url": { "raw": "{{baseUrl}}/admin/users/:id/unblock", "host": ["{{baseUrl}}"], "path": ["admin","users",":id","unblock"] } }
+        },
+        {
+          "name": "Posts - List",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/posts?page=1&limit=25", "host": ["{{baseUrl}}"], "path": ["admin","posts"], "query":[{"key":"page","value":"1"},{"key":"limit","value":"25"}] } }
+        },
+        {
+          "name": "Posts - Delete",
+          "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/admin/posts/:id", "host": ["{{baseUrl}}"], "path": ["admin","posts",":id"] } }
+        },
+        {
+          "name": "Reels - List",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/reels?page=1&limit=25", "host": ["{{baseUrl}}"], "path": ["admin","reels"], "query":[{"key":"page","value":"1"},{"key":"limit","value":"25"}] } }
+        },
+        {
+          "name": "Reels - Delete",
+          "request": { "method": "DELETE", "url": { "raw": "{{baseUrl}}/admin/reels/:id", "host": ["{{baseUrl}}"], "path": ["admin","reels",":id"] } }
+        },
+        {
+          "name": "Reports - List",
+          "request": { "method": "GET", "url": { "raw": "{{baseUrl}}/admin/reports?status=open", "host": ["{{baseUrl}}"], "path": ["admin","reports"], "query":[{"key":"status","value":"open"}] } }
+        },
+        {
+          "name": "Reports - Resolve",
+          "request": { "method": "PATCH", "header":[{"key":"Content-Type","value":"application/json"}], "url": { "raw": "{{baseUrl}}/admin/reports/:id/resolve", "host": ["{{baseUrl}}"], "path": ["admin","reports",":id","resolve"] }, "body": { "mode":"raw", "raw": "{\n  \"resolution\": \"resolved\"\n}" } }
+        }
+      ]
     }
   ],
   "variable": [
