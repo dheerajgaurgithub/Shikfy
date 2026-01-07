@@ -32,18 +32,19 @@ import adminRoutes from './routes/admin';
 const app = express();
 const httpServer = createServer(app);
 
-// ✅ Build allowed origins from environment + defaults
 const defaultOrigins = [
   'http://localhost:5173',
   'https://shikfy.netlify.app',
   'https://shikfy.netlify.app/signup'
 ];
+
 const envOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
 
 const allowedOrigins = Array.from(new Set([...defaultOrigins, ...envOrigins]));
+
 
 // ✅ Setup Socket.IO with CORS
 const io = new Server(httpServer, {
@@ -65,26 +66,24 @@ app.set('trust proxy', 1);
 // ✅ Enhanced CORS middleware (handles preflight + credentials)
 app.use(cors({
   origin: (origin, callback) => {
-    console.log('🌐 CORS request from:', origin);
-    if (!origin) return callback(null, true); // Allow non-browser tools
+    // Allow server-to-server, Postman, curl
+    if (!origin) return callback(null, true);
+
+    // Allow known frontends
     if (allowedOrigins.includes(origin)) {
-      console.log('✅ Allowed origin:', origin);
       return callback(null, true);
     }
-    console.warn('❌ Blocked origin:', origin);
-    return callback(new Error('CORS not allowed for ' + origin));
+
+    // ❗ DO NOT THROW ERROR (prevents 502)
+    return callback(null, false);
   },
-  credentials: true
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
 // ✅ Preflight (OPTIONS) handler — ensures proper headers
-app.options(/.*/, (req, res) => {
-  res.header('Access-Control-Allow-Origin', req.header('Origin'));
-  res.header('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,OPTIONS');
-  res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-  res.header('Access-Control-Allow-Credentials', 'true');
-  res.sendStatus(200);
-});
+
 
 // ✅ Middleware
 app.use(express.json({ limit: '50mb' }));
