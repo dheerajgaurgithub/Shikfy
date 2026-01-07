@@ -35,8 +35,8 @@ const httpServer = createServer(app);
 // ✅ Build allowed origins from environment + defaults
 const defaultOrigins = [
   'http://localhost:5173',
-  'http://localhost:4173',
-  'https://shikfy.netlify.app'
+  'https://shikfy.netlify.app',
+  'https://shikfy.netlify.app/signup'
 ];
 const envOrigins = (process.env.FRONTEND_URLS || process.env.FRONTEND_URL || '')
   .split(',')
